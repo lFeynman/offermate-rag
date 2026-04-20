@@ -1,0 +1,35 @@
+name: CI
+
+# 在主分支推送和 PR 时触发，保证基础质量门槛。
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    # 使用 GitHub 托管的 Ubuntu 运行器执行测试。
+    runs-on: ubuntu-latest
+
+    steps:
+      # 拉取仓库代码到 runner。
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 安装固定版本 Python，避免不同环境导致结果不一致。
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # 安装项目依赖和测试框架。
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      # 只跑 unit tests，作为快速回归检查。
+      - name: Run tests
+        run: |
+          pytest tests/unit

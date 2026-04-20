@@ -1,0 +1,9 @@
+# 文档切块大小
+chunk_size: 500
+# 相邻切块的重叠长度，避免关键信息刚好被切断
+chunk_overlap: 100
+# 每次检索返回的候选片段数量
+top_k: 5
+use_reranker: false
+# 检索模式：向量检索
+retrieval_mode: dense

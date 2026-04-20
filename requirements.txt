@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 streamlit
-pydantic
+pydantic>=2
 python-dotenv
 pymupdf
 faiss-cpu
@@ -9,3 +9,4 @@ sentence-transformers
 rank-bm25
 numpy
 pandas
+pytest

@@ -1,48 +1,307 @@
 # OfferMate-RAG：面向岗位 JD 与技术文档的检索增强智能助手
 
-OfferMate-RAG 是一个以 RAG 为核心、以 tool use 为增强的场景化求职助手，支持岗位 JD、简历与技术文档的解析、检索问答、技能匹配分析与面试问题生成。
+OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求职助手项目，以 **RAG（Retrieval-Augmented Generation）** 为核心，以 **Agent Workflow + Tool Calling** 为增强，并引入 **Harness Engineering** 思路，通过模块边界、Schema 约束、Prompt 模板、配置管理、测试与 CI 质量门禁，将 AI 能力收敛为可控、可复现、可交付的工程流程。
 
-## 项目目标
-本项目希望构建一个可落地的求职场景智能助手，具备以下能力：
+---
+
+## 1. 项目目标
+
+本项目旨在构建一个面向求职场景的检索增强智能助手，支持以下能力：
 
 - 基于岗位 JD、简历与技术文档进行问答
 - 输出带引用的可信回答
-- 通过任务路由调用不同工具模块
-- 分析岗位与简历的技能匹配情况
+- 对用户请求进行任务路由，并调用对应工具模块
+- 解析岗位要求与简历内容，完成技能匹配分析
 - 生成针对性的面试问题
+- 通过约束体系降低 AI 输出的不确定性，提升工程可控性
 
-## 核心模块
-- `rag/`：文档加载、chunk 切分、检索、生成、主链路
-- `agent/`：任务路由与工作流
-- `tools/`：JD Parser、Resume Parser、Skill Matcher、Interview Question Generator
-- `eval/`：benchmark 与评测脚本
-- `app/`：前端界面
-- `backend/`：FastAPI 后端
+---
 
-## 当前进度
+## 2. 核心特性
+
+### 2.1 RAG 主链路
+- 文档加载（PDF / TXT / Markdown）
+- 文本切分与知识库构建
+- 检索增强问答
+- 引用式回答
+- 无依据拒答
+
+### 2.2 Agent Workflow
+- 基于任务意图的路由机制
+- 按需调用工具模块
+- 支持 RAG、JD 解析、简历解析、技能匹配、面试题生成等不同任务路径
+
+### 2.3 Tool Calling
+- JD Parser
+- Resume Parser
+- Skill Matcher
+- Interview Question Generator
+
+### 2.4 Harness Engineering
+- 模块边界清晰划分
+- 统一 Schema 约束输入输出
+- Prompt 模板外置管理
+- 配置中心统一管理系统行为
+- 基础 checks / tests / CI 质量门禁
+
+---
+
+## 3. 当前进度
+
+### 已完成
 - [x] 项目初始化
-- [x] 目录结构搭建
-- [x] 最小前后端启动
-- [x] Agent / Tools 模块占位
-- [ ] 文档解析
-- [ ] RAG 检索问答
-- [ ] 引用式回答
-- [ ] 工具调用
-- [ ] 评测模块
+- [x] 基础目录结构搭建
+- [x] FastAPI 最小后端启动
+- [x] Streamlit 最小前端启动
+- [x] Agent / Tools 模块骨架
+- [x] Schema 约束层初版
+- [x] Prompt 模板目录初版
+- [x] Config 配置目录初版
+- [x] 文档加载模块 `loader.py`
+- [x] Router / Loader 最小单元测试
+- [x] 基础 Harness Checks 占位
+- [x] GitHub Actions CI 初版
 
-## 目录结构
+### 开发中
+- [ ] 文本切分模块 `chunker.py`
+- [ ] 检索模块 `retriever.py`
+- [ ] 回答生成模块 `generator.py`
+- [ ] RAG 主流程 `pipeline.py`
+- [ ] 工具模块具体逻辑实现
+- [ ] 引用式回答接入
+- [ ] benchmark / regression 评测
+
+---
+
+## 4. 项目结构
+
 ```text
 offermate-rag/
-├── app/
-├── backend/
-├── rag/
-├── agent/
-├── tools/
-├── eval/
-├── data/
-└── screenshots/
+├── app/                          # 前端展示层（Streamlit）
+│   └── main.py
+├── backend/                      # API 层（FastAPI）
+│   └── main.py
+├── rag/                          # RAG 主链路
+│   ├── loader.py
+│   ├── chunker.py
+│   ├── retriever.py
+│   ├── generator.py
+│   └── pipeline.py
+├── agent/                        # Agent 路由与流程编排
+│   ├── router.py
+│   └── workflow.py
+├── tools/                        # 可被 agent 调用的工具模块
+│   ├── jd_parser.py
+│   ├── resume_parser.py
+│   ├── skill_matcher.py
+│   └── interview_generator.py
+├── schemas/                      # 统一输入输出约束
+│   ├── common.py
+│   ├── jd.py
+│   ├── resume.py
+│   └── match.py
+├── prompts/                      # Prompt 模板管理
+│   ├── rag_answer.txt
+│   ├── router.txt
+│   ├── jd_parser.txt
+│   └── resume_parser.txt
+├── config/                       # 配置中心
+│   ├── settings.py
+│   ├── retrieval.yaml
+│   └── workflow.yaml
+├── harness/                      # Harness Engineering 相关检查与验证
+│   ├── checks/
+│   │   ├── schema_check.py
+│   │   └── route_check.py
+│   ├── eval/
+│   └── runner.py
+├── tests/                        # 测试层
+│   ├── unit/
+│   │   ├── test_loader.py
+│   │   └── test_router.py
+│   └── integration/
+├── data/                         # 原始输入数据
+│   ├── jd/
+│   ├── resume/
+│   ├── tech_docs/
+│   └── interview/
+├── docs/
+├── screenshots/
+├── .github/
+│   └── workflows/
+│       └── ci.yaml
+├── README.md
+├── requirements.txt
+└── .gitignore
+```
 
-## 启动方式
+## 5. 技术栈
+
+### 5.1 大模型与 RAG
+- Retrieval-Augmented Generation (RAG)
+- Dense Retrieval
+- BM25（计划接入）
+- Reranker（计划接入）
+- Prompt Engineering
+- Citation-Grounded Answering
+
+### 5.2 Agent / Workflow
+- Intent Routing
+- Tool Calling
+- Multi-step Workflow
+
+### 5.3 后端与前端
+- Python
+- FastAPI
+- Streamlit
+
+### 5.4 工程与质量
+- Pydantic
+- PyTest
+- Git / GitHub
+- GitHub Actions CI
+
+### 5.5 文档处理
+- PyMuPDF
+- TXT / Markdown / PDF 文档加载
+
+## 6. Harness Engineering 设计思路
+
+本项目不仅关注 AI 功能本身，也关注 AI 系统的可控性与可交付性。为此，项目引入 Harness Engineering 思路，通过三层约束降低模型输出的不确定性：
+
+### 6.1 架构级约束
+
+通过 rag/、agent/、tools/、backend/、app/ 等目录划分系统职责边界，避免功能耦合与模块混乱。
+
+### 6.2 质量级约束
+
+通过 schemas/ 固定输入输出结构，通过 prompts/ 管理模板，通过 tests/ 与 harness/checks/ 对关键行为进行验证。
+
+### 6.3 流程级约束
+
+通过 config/ 管理关键配置，通过 .github/workflows/ci.yaml 构建基础 CI 流程，为后续持续迭代与团队协作打基础。
+
+## 7. 快速开始
+
+### 7.1 创建环境
+
+推荐使用 Python 3.10。
+
+```bash
+python -m venv .venv
+```
+
+Windows 激活：
+
+```bash
+.venv\Scripts\activate
+```
+
+Linux / Mac 激活：
+
+```bash
+source .venv/bin/activate
+```
+
+### 7.2 安装依赖
+
+```bash
 pip install -r requirements.txt
+```
+
+### 7.3 启动后端
+
+```bash
 uvicorn backend.main:app --reload
+```
+
+默认访问：
+
+`http://127.0.0.1:8000`
+
+### 7.4 启动前端
+
+```bash
 streamlit run app/main.py
+```
+
+## 8. 数据准备
+
+将原始数据放入以下目录：
+
+- data/jd/：岗位 JD
+- data/resume/：简历 PDF / TXT
+- data/tech_docs/：技术文档、学习笔记
+- data/interview/：面试题、面经、八股资料
+
+当前支持的文档类型：
+
+- .txt
+- .md
+- .pdf
+
+## 9. 当前已支持的最小检查
+
+### 9.1 文档加载检查
+
+可通过 rag/loader.py 加载目录下文档，并返回统一的 text + metadata 结构。
+
+### 9.2 Schema 检查
+
+可通过 schemas/ 中的 Pydantic 模型验证基础结构是否正常工作。
+
+### 9.3 Router 检查
+
+可通过 agent/router.py 对简单用户请求进行任务路由。
+
+### 9.4 单元测试
+
+已提供最小单元测试：
+
+- tests/unit/test_loader.py
+- tests/unit/test_router.py
+
+运行方式：
+
+```bash
+pytest tests/unit -v
+```
+
+## 10. 后续开发计划
+
+### 阶段一：完成 RAG 主链路
+- 完成 chunker
+- 完成检索模块
+- 完成生成模块
+- 接入引用式回答
+
+### 阶段二：完成工具逻辑
+- 完成 JD Parser
+- 完成 Resume Parser
+- 完成 Skill Matcher
+- 完成 Interview Question Generator
+
+### 阶段三：补强 Harness Engineering
+- 完善 checks
+- 引入 benchmark / regression
+- 完善 tests
+- 扩展 CI 质量门禁
+
+### 阶段四：增强检索效果
+- 接入 BM25
+- 接入 Hybrid Retrieval
+- 接入 Reranker
+- 输出检索评测结果
+
+## 11. 项目价值
+
+相比普通的 RAG Demo，本项目更强调：
+
+- 场景化：围绕岗位 JD、简历与技术文档的真实求职场景设计
+- 工程化：通过模块划分、Schema、配置、测试与 CI 提高可维护性
+- 可控性：通过 Harness Engineering 思路约束 AI 输出行为
+- 可展示性：兼具 GitHub 项目展示、简历项目描述与面试讲解价值
+
+## 12. License
+
+当前仅用于个人学习、项目展示与求职场景实践，后续可根据需要补充正式 License。
