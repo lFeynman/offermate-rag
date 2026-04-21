@@ -10,3 +10,4 @@ rank-bm25
 numpy
 pandas
 pytest
+pyyaml

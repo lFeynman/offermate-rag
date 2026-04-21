@@ -1,12 +1,24 @@
-def route_query(query: str):
-    query = query.lower()
+from pathlib import Path
+import yaml
 
-    if "匹配" in query or "技能" in query:
-        return "skill_matcher"
-    if "岗位要求" in query or "jd" in query:
-        return "jd_parser"
-    if "简历" in query:
-        return "resume_parser"
-    if "面试题" in query or "问题" in query:
-        return "interview_generator"
-    return "rag"
+
+CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "workflow.yaml"
+
+
+def load_route_config():
+    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def route_query(query: str):
+    config = load_route_config()
+    routes = config.get("routes", {})
+    default_route = config.get("default_route", "rag")
+
+    for route_name, route_info in routes.items():
+        keywords = route_info.get("keywords", [])
+        for kw in keywords:
+            if kw.lower() in query.lower():
+                return route_name
+
+    return default_route
