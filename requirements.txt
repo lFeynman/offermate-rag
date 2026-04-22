@@ -1,13 +1,11 @@
 fastapi
 uvicorn
 streamlit
-pydantic>=2
+pydantic
 python-dotenv
 pymupdf
-faiss-cpu
-sentence-transformers
-rank-bm25
 numpy
 pandas
-pytest
 pyyaml
+openai
+pytest
