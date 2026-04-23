@@ -1,0 +1,3 @@
+min_score_threshold: 0.35
+max_context_items: 3
+refuse_message: 无法从当前资料中确定，请补充更相关的岗位 JD、简历或技术文档。

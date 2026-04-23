@@ -1,6 +1,6 @@
 # OfferMate-RAG：面向岗位 JD 与技术文档的检索增强智能助手
 
-OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求职助手项目，以 RAG（Retrieval-Augmented Generation）为核心，以 Agent Workflow 和 Tool Calling 为增强，并引入 Harness Engineering 思路，通过模块边界、Schema 约束、Prompt 模板、配置管理、测试与 CI 质量门禁，将 AI 能力收敛为可控、可复现、可交付的工程流程。
+OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求职助手项目，以 **RAG（Retrieval-Augmented Generation）** 为核心，以 **Agent Workflow + Tool Calling** 为增强，并引入 **Harness Engineering** 思路，通过模块边界、Schema 约束、Prompt 模板、配置管理、测试与 CI 质量门禁，将 AI 能力收敛为可控、可复现、可交付的工程流程。
 
 ---
 
@@ -21,12 +21,12 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 
 ### 2.1 RAG 主链路
 
-- 文档加载（PDF、TXT、Markdown）
+- 文档加载（PDF / TXT / Markdown）
 - 文本切分与知识库构建
 - Qwen Embedding 检索
 - Qwen Generation 回答生成
 - 引用式回答
-- 无依据拒答
+- 基础拒答机制
 
 ### 2.2 Agent Workflow
 
@@ -48,7 +48,7 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 - 统一 Schema 约束输入输出
 - Prompt 模板外置管理
 - 配置中心统一管理系统行为
-- 基础 checks、tests 与 CI 质量门禁
+- 基础 checks / tests / CI 质量门禁
 
 ---
 
@@ -56,105 +56,118 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 
 ### 已完成
 
-- 项目初始化
-- 基础目录结构搭建
-- FastAPI 最小后端启动
-- Streamlit 最小前端启动
-- Agent 和 Tools 模块骨架
-- Schema 约束层初版
-- Prompt 模板目录初版
-- Config 配置目录初版
-- 文档加载模块 loader.py
-- 文本切分模块 chunker.py
-- load 到 chunk 的最小 pipeline
-- Router 从配置文件读取路由规则
-- Qwen Embedding 接入，使用 text-embedding-v4
-- Qwen Generation 接入，使用 qwen-plus
-- 最小 retrieval pipeline
-- Router、Loader、Chunker、Pipeline 最小单元测试
-- 基础 Harness Checks 占位
-- GitHub Actions CI 初版
+- [x] 项目初始化
+- [x] 基础目录结构搭建
+- [x] FastAPI 最小后端启动
+- [x] Streamlit 最小前端启动
+- [x] Agent / Tools 模块骨架
+- [x] Schema 约束层初版
+- [x] Prompt 模板目录初版
+- [x] Config 配置目录初版
+- [x] 文档加载模块 `loader.py`
+- [x] 文本切分模块 `chunker.py`
+- [x] `load -> chunk` 最小 pipeline
+- [x] Router 从配置文件读取路由规则
+- [x] Qwen Embedding 接入（`text-embedding-v4`）
+- [x] Qwen Generation 接入（`qwen-plus`）
+- [x] 最小 retrieval pipeline
+- [x] 回答结构化输出（`RAGResponse` / `Citation`）
+- [x] 基础拒答机制（score threshold）
+- [x] 引用构建逻辑
+- [x] 最小 `/chat` API
+- [x] Streamlit 问答演示页
+- [x] Router / Loader / Chunker / Pipeline / Answer Logic 最小单元测试
+- [x] 基础 Harness Checks 占位
+- [x] GitHub Actions CI 初版
 
 ### 开发中
 
-- 工具模块具体逻辑实现
-- 引用式回答接入
-- benchmark 和 regression 评测
-- BM25 和 Hybrid Retrieval
-- Reranker
-- 更完整的端到端 workflow
+- [ ] 工具模块具体逻辑实现
+- [ ] 更完整的 citation 展示
+- [ ] benchmark / regression 评测
+- [ ] BM25 / Hybrid Retrieval
+- [ ] Reranker
+- [ ] 更完整的端到端 workflow
 
 ---
 
 ## 4. 项目结构
 
-    offermate-rag/
-    ├── app/
-    │   └── main.py
-    ├── backend/
-    │   └── main.py
-    ├── rag/
-    │   ├── loader.py
-    │   ├── chunker.py
-    │   ├── retriever.py
-    │   ├── generator.py
-    │   └── pipeline.py
-    ├── agent/
-    │   ├── router.py
-    │   └── workflow.py
-    ├── tools/
-    │   ├── jd_parser.py
-    │   ├── resume_parser.py
-    │   ├── skill_matcher.py
-    │   └── interview_generator.py
-    ├── schemas/
-    │   ├── common.py
-    │   ├── jd.py
-    │   ├── resume.py
-    │   ├── match.py
-    │   ├── document.py
-    │   └── retrieval.py
-    ├── prompts/
-    │   ├── rag_answer.txt
-    │   ├── router.txt
-    │   ├── jd_parser.txt
-    │   └── resume_parser.txt
-    ├── config/
-    │   ├── settings.py
-    │   ├── retrieval.yaml
-    │   ├── workflow.yaml
-    │   └── model.yaml
-    ├── harness/
-    │   ├── checks/
-    │   │   ├── schema_check.py
-    │   │   └── route_check.py
-    │   ├── eval/
-    │   └── runner.py
-    ├── tests/
-    │   ├── unit/
-    │   │   ├── test_loader.py
-    │   │   ├── test_router.py
-    │   │   ├── test_chunker.py
-    │   │   ├── test_pipeline.py
-    │   │   ├── test_retrieval_schema.py
-    │   │   └── test_retriever.py
-    │   └── integration/
-    ├── data/
-    │   ├── jd/
-    │   ├── resume/
-    │   ├── tech_docs/
-    │   └── interview/
-    ├── docs/
-    ├── screenshots/
-    ├── README.md
-    ├── requirements.txt
-    └── .gitignore
+```text
+offermate-rag/
+├── app/                          # 前端展示层（Streamlit）
+│   └── main.py
+├── backend/                      # API 层（FastAPI）
+│   └── main.py
+├── rag/                          # RAG 主链路
+│   ├── loader.py                 # 文档加载
+│   ├── chunker.py                # 文本切分
+│   ├── retriever.py              # Qwen embedding 检索
+│   ├── generator.py              # Qwen generation 回答生成
+│   └── pipeline.py               # retrieval -> answer 主流程
+├── agent/                        # Agent 路由与流程编排
+│   ├── router.py
+│   └── workflow.py
+├── tools/                        # 可被 agent 调用的工具模块
+│   ├── jd_parser.py
+│   ├── resume_parser.py
+│   ├── skill_matcher.py
+│   └── interview_generator.py
+├── schemas/                      # 统一输入输出约束
+│   ├── common.py
+│   ├── jd.py
+│   ├── resume.py
+│   ├── match.py
+│   ├── document.py
+│   └── retrieval.py
+├── prompts/                      # Prompt 模板管理
+│   ├── rag_answer.txt
+│   ├── router.txt
+│   ├── jd_parser.txt
+│   └── resume_parser.txt
+├── config/                       # 配置中心
+│   ├── settings.py
+│   ├── retrieval.yaml
+│   ├── workflow.yaml
+│   ├── model.yaml
+│   └── answer.yaml
+├── harness/                      # Harness Engineering 相关检查与验证
+│   ├── checks/
+│   │   ├── schema_check.py
+│   │   └── route_check.py
+│   ├── eval/
+│   └── runner.py
+├── tests/                        # 测试层
+│   ├── unit/
+│   │   ├── test_loader.py
+│   │   ├── test_router.py
+│   │   ├── test_chunker.py
+│   │   ├── test_pipeline.py
+│   │   ├── test_retrieval_schema.py
+│   │   ├── test_retriever.py
+│   │   ├── test_answer_logic.py
+│   │   └── test_chat_response_schema.py
+│   └── integration/
+├── data/                         # 原始输入数据
+│   ├── jd/
+│   ├── resume/
+│   ├── tech_docs/
+│   └── interview/
+├── docs/
+├── screenshots/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── README.md
+├── requirements.txt
+└── .gitignore
+```
 
 ---
 
 ## 5. 技术栈
 
-### 5.1 大模型与检索
+### 大模型 / RAG
 
 - Qwen Embedding: text-embedding-v4
 - Qwen Generation: qwen-plus
@@ -162,20 +175,20 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 - Prompt Engineering
 - Citation-Grounded Answering
 
-### 5.2 Agent 与 Workflow
+### Agent / Workflow
 
 - Intent Routing
 - Tool Calling
 - Config-Driven Routing
 - Multi-step Workflow
 
-### 5.3 后端与前端
+### 后端与前端
 
 - Python
 - FastAPI
 - Streamlit
 
-### 5.4 工程与质量
+### 工程与质量
 
 - Pydantic
 - PyTest
@@ -183,7 +196,7 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 - GitHub Actions CI
 - YAML Config
 
-### 5.5 文档处理
+### 文档处理
 
 - PyMuPDF
 - TXT / Markdown / PDF 文档加载
@@ -196,15 +209,15 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 
 ### 6.1 架构级约束
 
-通过 rag、agent、tools、backend、app 等目录划分系统职责边界，避免功能耦合与模块混乱。
+通过 rag/、agent/、tools/、backend/、app/ 等目录划分系统职责边界，避免功能耦合与模块混乱。
 
 ### 6.2 质量级约束
 
-通过 schemas 固定输入输出结构，通过 prompts 管理模板，通过 tests 与 harness/checks 对关键行为进行验证。
+通过 schemas/ 固定输入输出结构，通过 prompts/ 管理模板，通过 tests/ 与 harness/checks/ 对关键行为进行验证。
 
 ### 6.3 流程级约束
 
-通过 config 管理关键配置，通过 .github/workflows/ci.yml 构建基础 CI 流程，为后续持续迭代与团队协作打基础。
+通过 config/ 管理关键配置，通过 .github/workflows/ci.yml 构建基础 CI 流程，为后续持续迭代与团队协作打基础。
 
 ---
 
@@ -214,41 +227,57 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 
 推荐使用 Python 3.10。
 
-    python -m venv .venv
+```bash
+python -m venv .venv
+```
 
 Windows 激活：
 
-    .venv\Scripts\activate
+```powershell
+.venv\Scripts\activate
+```
 
-Linux 或 Mac 激活：
+Linux / Mac 激活：
 
-    source .venv/bin/activate
+```bash
+source .venv/bin/activate
+```
 
 ### 7.2 安装依赖
 
-    pip install -r requirements.txt
+```bash
+pip install -r requirements.txt
+```
 
 ### 7.3 配置环境变量
 
 Windows PowerShell：
 
-    $env:DASHSCOPE_API_KEY="你的APIKey"
+```powershell
+$env:DASHSCOPE_API_KEY="你的APIKey"
+```
 
-Linux 或 Mac：
+Linux / Mac：
 
-    export DASHSCOPE_API_KEY="你的APIKey"
+```bash
+export DASHSCOPE_API_KEY="你的APIKey"
+```
 
-### 7.4 启动后端
+### 7.4 启动前端
 
-    uvicorn backend.main:app --reload
+```bash
+streamlit run app/main.py
+```
+
+### 7.5 启动后端（可选）
+
+```bash
+uvicorn backend.main:app --reload
+```
 
 默认访问：
 
-    http://127.0.0.1:8000
-
-### 7.5 启动前端
-
-    streamlit run app/main.py
+- http://127.0.0.1:8000
 
 ---
 
@@ -257,7 +286,7 @@ Linux 或 Mac：
 将原始数据放入以下目录：
 
 - data/jd/：岗位 JD
-- data/resume/：简历 PDF 或 TXT
+- data/resume/：简历 PDF / TXT
 - data/tech_docs/：技术文档、学习笔记
 - data/interview/：面试题、面经、八股资料
 
@@ -280,7 +309,7 @@ Linux 或 Mac：
 
 ### 9.1 文档加载
 
-可通过 rag/loader.py 加载目录下文档，并返回统一的 text 和 metadata 结构。
+可通过 rag/loader.py 加载目录下文档，并返回统一的 text + metadata 结构。
 
 ### 9.2 文本切分
 
@@ -306,59 +335,64 @@ Linux 或 Mac：
 - 使用 qwen-plus
 - 基于检索结果生成最小回答
 
-### 9.5 最小 pipeline
+### 9.5 回答结构化输出
 
-当前 rag/pipeline.py 已支持：
+当前 rag/pipeline.py 已支持返回：
 
-- 加载文档
-- 切分为 chunk
-- 执行 retrieval
-- 根据检索结果生成回答
+- answer
+- citations
+- grounded
 
-### 9.6 路由配置化
+### 9.6 基础拒答机制
 
-agent/router.py 已支持从 config/workflow.yaml 读取路由规则，而非在代码中写死关键词。
+当检索结果分数低于阈值时，系统返回预设拒答信息，并标记：
 
-### 9.7 基础单元测试
+- grounded = false
+- citations = []
 
-当前已提供最小单元测试：
+### 9.7 前端最小演示
 
-- tests/unit/test_loader.py
-- tests/unit/test_router.py
-- tests/unit/test_chunker.py
-- tests/unit/test_pipeline.py
-- tests/unit/test_retrieval_schema.py
-- tests/unit/test_retriever.py
+当前 app/main.py 已支持：
 
-运行方式：
+- 输入问题
+- 检索并生成回答
+- 展示 grounded 状态
+- 展示引用列表
 
-    pytest tests/unit -v
+### 9.8 后端最小接口
+
+当前 backend/main.py 已提供：
+
+- GET /
+- POST /chat
 
 ---
 
 ## 10. 示例检查方式
 
-### 10.1 检查检索器
+### 10.1 检查完整问答流程
 
-    from rag.pipeline import prepare_retriever
+```python
+from rag.pipeline import answer_query
 
-    retriever = prepare_retriever("data", chunk_size=200, chunk_overlap=50)
-    results = retriever.retrieve("这个岗位要求哪些技能", top_k=3)
+result = answer_query("这个岗位主要要求哪些技能？", "data", top_k=3)
+print(result.model_dump())
+```
 
-    for r in results:
-        print(r.model_dump())
+### 10.2 检查拒答逻辑
 
-### 10.2 检查完整问答流程
+```python
+from rag.pipeline import answer_query
 
-    from rag.pipeline import answer_query
-
-    result = answer_query("这个岗位主要要求哪些技能？", "data", top_k=3)
-    print(result["answer"])
-    print(result["retrieval_results"][0])
+result = answer_query("今天天气怎么样？", "data", top_k=3)
+print(result.model_dump())
+```
 
 ### 10.3 运行单元测试
 
-    pytest tests/unit -v
+```bash
+pytest tests/unit -v
+```
 
 ---
 
@@ -374,7 +408,7 @@ agent/router.py 已支持从 config/workflow.yaml 读取路由规则，而非在
 ### 阶段二：补强 Harness Engineering
 
 - 完善 checks
-- 引入 benchmark 和 regression
+- 引入 benchmark / regression
 - 完善 tests
 - 扩展 CI 质量门禁
 
@@ -387,10 +421,10 @@ agent/router.py 已支持从 config/workflow.yaml 读取路由规则，而非在
 
 ### 阶段四：增强回答质量
 
-- 接入 citation 生成
+- 优化 citation 展示
 - 优化 grounded answer
-- 增加拒答策略
-- 优化 end-to-end workflow
+- 增强拒答策略
+- 完善端到端 workflow
 
 ---
 

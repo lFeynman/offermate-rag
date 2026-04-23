@@ -4,11 +4,9 @@ from typing import List, Optional
 
 # 单条引用信息：描述答案依据来自哪个来源，以及定位到文档的哪个位置
 class Citation(BaseModel):
-    # 来源文件名、文档名或 URL
     source: str
-    # 可选页码
+    file_name: str
     page: Optional[int] = None
-    # 可选块编号
     chunk_id: Optional[str] = None
 
 

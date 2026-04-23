@@ -34,7 +34,10 @@ class QwenGenerator:
 
     def generate(self, query: str, contexts: list[dict]) -> str:
         context_text = "\n\n".join(
-            [f"[{i+1}] {c['text']}" for i, c in enumerate(contexts)]
+            [
+                f"[资料{i+1}] 文件：{c['file_name']} | 页码：{c.get('page', None)}\n内容：{c['text']}"
+                for i, c in enumerate(contexts)
+            ]
         )
 
         messages = [
@@ -51,4 +54,4 @@ class QwenGenerator:
             temperature=0.2
         )
 
-        return resp.choices[0].message.content
+        return resp.choices[0].message.content.strip()
