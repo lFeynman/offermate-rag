@@ -15,10 +15,20 @@ def route_query(query: str):
     routes = config.get("routes", {})
     default_route = config.get("default_route", "rag")
 
+    query_lower = query.lower()
+    matched_routes = []
+
     for route_name, route_info in routes.items():
         keywords = route_info.get("keywords", [])
-        for kw in keywords:
-            if kw.lower() in query.lower():
-                return route_name
+        priority = route_info.get("priority", 0)
 
-    return default_route
+        for kw in keywords:
+            if kw.lower() in query_lower:
+                matched_routes.append((route_name, priority, kw))
+                break
+
+    if not matched_routes:
+        return default_route
+
+    matched_routes.sort(key=lambda x: x[1], reverse=True)
+    return matched_routes[0][0]

@@ -1,15 +1,18 @@
 routes:
-  # 技能匹配路由
   skill_matcher:
-    keywords: ["匹配", "技能", "适合", "差距"]
-  # JD 解析路由
-  jd_parser:
-    keywords: ["岗位要求", "jd", "招聘要求"]
-  # 简历解析路由
-  resume_parser:
-    keywords: ["简历", "项目经历", "教育背景"]
-  # 面试题生成路由
+    priority: 100
+    keywords: ["匹配", "适合", "差距", "契合", "岗位匹配", "简历匹配"]
+
   interview_generator:
-    keywords: ["面试题", "问题", "模拟面试"]
-# 默认路由：当关键词都没命中时，退回到通用 RAG 问答
+    priority: 90
+    keywords: ["面试题", "问题", "模拟面试", "面试准备", "可能会问"]
+
+  jd_parser:
+    priority: 70
+    keywords: ["岗位要求", "jd", "招聘要求", "岗位描述"]
+
+  resume_parser:
+    priority: 60
+    keywords: ["简历", "项目经历", "教育背景", "技能经历"]
+
 default_route: rag
