@@ -21,6 +21,7 @@ tab_chat, tab_match, tab_interview = st.tabs(["RAG 问答", "JD/简历匹配", "
 
 with tab_chat:
     st.markdown("### RAG 问答")
+    st.caption("该模块会调用 Qwen Embedding 和 Qwen Generation，可能消耗 token。")
 
     query = st.text_input("请输入你的问题", placeholder="例如：这个岗位主要要求哪些技能？")
 
@@ -34,7 +35,7 @@ with tab_chat:
             st.markdown("### 回答")
             st.write(result.answer)
 
-            st.markdown("### grounded")
+            st.markdown("### Grounded")
             st.write(result.grounded)
 
             st.markdown("### 引用")
@@ -46,6 +47,7 @@ with tab_chat:
 
 with tab_match:
     st.markdown("### JD / 简历匹配分析")
+    st.caption("该模块为规则版工具，不调用 Qwen，不消耗 token。")
 
     jd_text = st.text_area("粘贴岗位 JD", height=220)
     resume_text = st.text_area("粘贴简历文本", height=220)
@@ -69,6 +71,7 @@ with tab_match:
 
 with tab_interview:
     st.markdown("### 面试题生成")
+    st.caption("该模块为规则版工具，不调用 Qwen，不消耗 token。")
 
     jd_text_q = st.text_area("粘贴岗位 JD", height=200, key="jd_for_questions")
     resume_text_q = st.text_area("粘贴简历文本", height=200, key="resume_for_questions")

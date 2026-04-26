@@ -11,6 +11,7 @@ def test_parse_jd_extract_skills():
 
     result = parse_jd(text)
 
-    assert "Python" in result.required_skills or "Python" in result.preferred_skills
-    assert "RAG" in result.required_skills or "RAG" in result.preferred_skills
+    all_skills = result.required_skills + result.preferred_skills
+    assert "Python" in all_skills
+    assert "RAG" in all_skills
     assert result.degree_requirement is not None

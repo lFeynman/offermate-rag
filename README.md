@@ -1,3 +1,12 @@
+# OfferMate-RAG：面向岗位 JD 与技术文档的检索增强智能助手
+
+OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求职助手项目，以 **RAG（Retrieval-Augmented Generation）** 为核心，以 **Agent Workflow + Tool Calling** 为增强，并引入 **Harness Engineering** 思路，通过模块边界、Schema 约束、Prompt 模板管理、配置中心、测试与 CI 质量门禁，将 AI 能力收敛为可控、可复现、可交付的工程流程。
+
+本项目面向大模型应用与 AI 工程场景，重点关注：  
+**文档问答、岗位解析、简历解析、技能匹配、面试题生成、工程约束与系统可维护性。**
+
+---
+
 ## 1. 项目目标
 
 本项目旨在构建一个面向求职场景的检索增强智能助手，支持以下能力：
@@ -6,8 +15,8 @@
 - 输出带引用的可信回答
 - 对用户请求进行任务路由，并调用对应工具模块
 - 解析岗位要求与简历内容，完成技能匹配分析
-- 生成针对性的面试问题
-- 通过工程约束体系降低 AI 输出的不确定性，提升系统可控性与可维护性
+- 根据岗位与简历生成针对性面试问题
+- 通过 Harness Engineering 降低 AI 系统输出的不确定性，提升可控性与可维护性
 
 ---
 
@@ -15,46 +24,166 @@
 
 ### 2.1 RAG 主链路
 
-- 文档加载（PDF / TXT / Markdown）
-- 文本切分与知识库构建
-- Qwen Embedding 检索
-- Qwen Generation 回答生成
-- 引用式回答
-- 基础拒答机制
+- 支持 PDF / TXT / Markdown 文档加载
+- 支持文本 chunk 切分
+- 使用 Qwen `text-embedding-v4` 构建向量检索
+- 使用 Qwen `qwen-plus` 生成回答
+- 支持 citation-aware answer
+- 支持基础拒答机制
+- 返回结构化 `RAGResponse`
 
 ### 2.2 Agent Workflow
 
-- 基于任务意图的路由机制
-- 支持通过配置文件管理路由规则
-- 当前已支持 **priority-based router**
-- 可避免“简历”“匹配”等多个关键词同时命中时的错误路由
-- 后续计划升级为 scoring router 与 LLM fallback router
+- 支持 config-driven priority router
+- 支持根据用户请求路由到不同任务路径
+- 当前支持任务类型：
+  - RAG 问答
+  - JD Parser
+  - Resume Parser
+  - Skill Matcher
+  - Interview Question Generator
 
 ### 2.3 Tool Calling
 
-当前项目保留以下工具模块结构：
+当前已实现规则版工具模块：
 
-- JD Parser
-- Resume Parser
-- Skill Matcher
-- Interview Question Generator
-
-当前阶段的重点是先完成稳定的路由与工程约束框架，后续将逐步完善工具模块的具体逻辑。
+- `JD Parser`：抽取岗位技能、学历要求、实习时长、职责描述
+- `Resume Parser`：抽取简历技能、教育背景、项目、奖项
+- `Skill Matcher`：对比 JD 与简历，输出匹配技能、缺失技能、建议补充项和匹配分数
+- `Interview Question Generator`：基于岗位要求、简历内容和技能差距生成分类型面试问题
 
 ### 2.4 Harness Engineering
 
-本项目不仅关注 AI 功能本身，也关注 AI 系统的稳定交付。当前通过以下方式体现 Harness Engineering 思路：
+本项目不仅关注 AI 功能本身，也关注 AI 系统的稳定交付。当前通过以下方式体现 Harness Engineering：
 
-- 模块边界清晰划分
-- 统一 Schema 约束输入输出
-- Prompt 模板外置管理
-- Config 配置中心统一管理系统行为
-- Router 规则配置化
-- 基础 checks / tests / CI 质量门禁
+- 模块化架构：`rag / agent / tools / schemas / prompts / config / harness / tests`
+- Schema 约束：使用 Pydantic 固定核心输入输出结构
+- Prompt 外置：将 prompt 模板从代码中分离
+- 配置中心：统一管理模型、检索、回答、路由等配置
+- 测试体系：使用 PyTest 对核心模块进行基础测试
+- CI 质量门禁：使用 GitHub Actions 执行基础测试流程
 
 ---
 
-## 3. 当前进度
+## 3. 系统整体流程图
+
+```mermaid
+flowchart TD
+    A[用户输入] --> B{任务路由 Router}
+
+    B -->|文档问答| C[RAG Pipeline]
+    B -->|岗位解析| D[JD Parser]
+    B -->|简历解析| E[Resume Parser]
+    B -->|技能匹配| F[Skill Matcher]
+    B -->|面试题生成| G[Interview Question Generator]
+
+    C --> C1[文档加载 Loader]
+    C1 --> C2[文本切分 Chunker]
+    C2 --> C3[Qwen text-embedding-v4 向量编码]
+    C3 --> C4[Dense Retrieval 相似度检索]
+    C4 --> C5[Top-K Contexts]
+    C5 --> C6[Qwen qwen-plus 回答生成]
+    C6 --> C7[RAGResponse: answer + citations + grounded]
+
+    D --> D1[岗位技能/学历/职责抽取]
+    E --> E1[简历技能/教育/项目/奖项抽取]
+    F --> F1[JDInfo + ResumeInfo 对比]
+    F1 --> F2[matched_skills / missing_skills / suggestions / match_score]
+    G --> G1[基础题/技能题/差距追问/项目题]
+
+    C7 --> H[Streamlit 前端展示]
+    D1 --> H
+    E1 --> H
+    F2 --> H
+    G1 --> H
+
+    H --> I[用户查看结果]
+
+    subgraph Harness Engineering
+        J[schemas: 输出结构约束]
+        K[prompts: Prompt 模板管理]
+        L[config: 参数配置中心]
+        M[tests: 单元测试]
+        N[CI: GitHub Actions]
+    end
+
+    C --> J
+    D --> J
+    E --> J
+    F --> J
+    G --> J
+    B --> L
+    C --> K
+    C --> L
+    M --> N
+```
+
+---
+
+## 4. RAG 模块流程图
+
+```mermaid
+flowchart TD
+    A[原始文档输入<br/>PDF / TXT / Markdown] --> B[Loader 文档加载]
+
+    B --> B1[使用方法:<br/>PyMuPDF 解析 PDF<br/>read_text 读取 TXT / MD]
+    B1 --> C[统一文档结构<br/>text + metadata]
+
+    C --> D[Chunker 文本切分]
+    D --> D1[使用方法:<br/>固定窗口切分<br/>chunk_size = 500<br/>chunk_overlap = 100]
+    D1 --> E[DocumentChunk]
+
+    E --> E1[Chunk Metadata:<br/>chunk_id<br/>source<br/>file_name<br/>file_type<br/>page]
+
+    E1 --> F[Embedding 编码]
+    F --> F1[使用方法:<br/>Qwen text-embedding-v4<br/>OpenAI-compatible API<br/>embedding_dimensions = 1024]
+
+    F1 --> G[向量索引构建]
+    G --> G1[使用方法:<br/>内存向量矩阵<br/>normalize embeddings<br/>cosine similarity / dot product]
+
+    H[用户 Query] --> I[Query Embedding]
+    I --> I1[使用方法:<br/>Qwen text-embedding-v4<br/>同一 embedding 模型编码 query]
+
+    G1 --> J[Dense Retrieval]
+    I1 --> J
+    J --> J1[使用方法:<br/>向量相似度排序<br/>返回 Top-K chunks]
+
+    J1 --> K[Context Assembly]
+    K --> K1[使用方法:<br/>将 Top-K chunks 拼接为上下文<br/>保留 citation metadata]
+
+    K1 --> L{是否满足回答阈值?}
+    L -->|top score 低于阈值| M[拒答]
+    M --> M1[返回:<br/>grounded = false<br/>citations = empty]
+
+    L -->|top score 达到阈值| N[Generator 回答生成]
+    N --> N1[使用方法:<br/>Qwen qwen-plus<br/>temperature = 0.2<br/>grounded prompt]
+
+    N1 --> O[Citation Builder]
+    O --> O1[使用方法:<br/>根据 retrieval metadata 构建 citations]
+
+    O1 --> P[RAGResponse]
+    P --> P1[输出结构:<br/>answer<br/>citations<br/>grounded]
+```
+
+---
+
+## 5. RAG 模块方法说明
+
+| 模块 | 文件 | 当前方法 | 说明 |
+|---|---|---|---|
+| 文档加载 | `rag/loader.py` | PyMuPDF + 本地文本读取 | PDF 使用 PyMuPDF，TXT/MD 使用 `read_text` |
+| 文本切分 | `rag/chunker.py` | 固定窗口切分 | 使用 `chunk_size` 和 `chunk_overlap` 控制切分粒度 |
+| Chunk Schema | `schemas/document.py` | Pydantic Schema | 统一 chunk 输出结构，保留 source、file_name、page 等元数据 |
+| Embedding | `rag/retriever.py` | Qwen `text-embedding-v4` | 使用 Qwen embedding 模型对 chunk 和 query 编码 |
+| 检索 | `rag/retriever.py` | Dense Retrieval | 当前使用向量相似度检索，返回 Top-K chunks |
+| 生成 | `rag/generator.py` | Qwen `qwen-plus` | 基于检索上下文生成回答 |
+| 引用构建 | `rag/pipeline.py` | metadata-based citation | 根据检索结果的 source、file_name、page、chunk_id 构建引用 |
+| 拒答机制 | `rag/pipeline.py` + `config/answer.yaml` | score threshold | 当 top score 低于阈值时返回拒答 |
+| 输出结构 | `schemas/common.py` | `RAGResponse` | 返回 answer、citations、grounded |
+
+---
+
+## 6. 当前进度
 
 ### 已完成
 
@@ -77,23 +206,30 @@
 - [x] 引用构建逻辑
 - [x] 最小 `/chat` API
 - [x] Streamlit 问答演示页
-- [x] Router 从配置文件读取路由规则
-- [x] Priority-based router：解决多关键词同时命中时的路由优先级问题
-- [x] Router / Loader / Chunker / Pipeline / Answer Logic 最小单元测试
-- [x] 基础 Harness Checks 占位
+- [x] Config-driven priority router
+- [x] JD Parser 规则版
+- [x] Resume Parser 规则版
+- [x] Skill Matcher 规则版
+- [x] Interview Question Generator 增强规则版
+- [x] Agent Tool Registry
+- [x] Agent Workflow 初版
+- [x] Streamlit 支持 RAG 问答、JD/简历匹配、面试题生成
+- [x] 基础 Harness Checks
 - [x] GitHub Actions CI 初版
 
-### 当前重点
+### 开发中
 
-- [x] 将 router 从简单关键词命中升级为优先级路由
-- [ ] 完善工具模块的具体逻辑
-- [ ] 优化面试题生成质量
-- [ ] 引入更稳定的 task scoring 机制
-- [ ] 构建更完整的 Agent Workflow
+- [ ] BM25 检索
+- [ ] Hybrid Retrieval
+- [ ] Reranker
+- [ ] Benchmark / Regression Harness
+- [ ] LLM Router Fallback
+- [ ] Qwen-based Tool Generation
+- [ ] 更完整的端到端 Agent Workflow
 
 ---
 
-## 4. 项目结构
+## 7. 项目结构
 
 ```text
 offermate-rag/
@@ -109,7 +245,8 @@ offermate-rag/
 │   └── pipeline.py               # retrieval -> answer 主流程
 ├── agent/                        # Agent 路由与流程编排
 │   ├── router.py                 # priority-based router
-│   └── workflow.py
+│   ├── registry.py               # tool registry
+│   └── workflow.py               # agent workflow
 ├── tools/                        # 可被 agent 调用的工具模块
 │   ├── jd_parser.py
 │   ├── resume_parser.py
@@ -130,7 +267,7 @@ offermate-rag/
 ├── config/                       # 配置中心
 │   ├── settings.py
 │   ├── retrieval.yaml
-│   ├── workflow.yaml             # router keywords + priority
+│   ├── workflow.yaml
 │   ├── model.yaml
 │   └── answer.yaml
 ├── harness/                      # Harness Engineering 相关检查与验证
@@ -141,14 +278,6 @@ offermate-rag/
 │   └── runner.py
 ├── tests/                        # 测试层
 │   ├── unit/
-│   │   ├── test_loader.py
-│   │   ├── test_router.py
-│   │   ├── test_chunker.py
-│   │   ├── test_pipeline.py
-│   │   ├── test_retrieval_schema.py
-│   │   ├── test_retriever.py
-│   │   ├── test_answer_logic.py
-│   │   └── test_chat_response_schema.py
 │   └── integration/
 ├── data/                         # 原始输入数据
 │   ├── jd/
@@ -167,31 +296,31 @@ offermate-rag/
 
 ---
 
-## 5. 技术栈
+## 8. 技术栈
 
-### 5.1 大模型 / RAG
+### 大模型 / RAG
 
-- Qwen Embedding：`text-embedding-v4`
-- Qwen Generation：`qwen-plus`
+- Qwen Embedding: `text-embedding-v4`
+- Qwen Generation: `qwen-plus`
 - Dense Retrieval
 - Prompt Engineering
 - Citation-Grounded Answering
 
-### 5.2 Agent / Workflow
+### Agent / Workflow
 
-- Intent Routing
+- Config-driven Router
 - Priority-based Routing
 - Tool Calling
-- Config-Driven Routing
-- Multi-step Workflow（开发中）
+- Rule-based Tools
+- Agent Workflow
 
-### 5.3 后端与前端
+### 后端与前端
 
 - Python
 - FastAPI
 - Streamlit
 
-### 5.4 工程与质量
+### 工程与质量
 
 - Pydantic
 - PyTest
@@ -199,57 +328,16 @@ offermate-rag/
 - GitHub Actions CI
 - YAML Config
 
-### 5.5 文档处理
+### 文档处理
 
 - PyMuPDF
 - TXT / Markdown / PDF 文档加载
 
 ---
 
-## 6. Priority-based Router 设计
+## 9. 快速开始
 
-在早期版本中，router 采用简单关键词命中方式。该方式存在一个问题：当用户请求同时包含多个关键词时，可能被路由到错误模块。
-
-例如：
-
-> 帮我分析我的简历和这个岗位是否匹配
-
-这句话同时包含“简历”“匹配”“岗位”，如果仅按关键词顺序匹配，可能会错误进入 `resume_parser`。真实意图通常应为 `skill_matcher`。
-
-因此，当前版本引入 priority-based router，在 `config/workflow.yaml` 中为不同 route 设置优先级。当前优先级如下：
-
-- `skill_matcher`：100
-- `interview_generator`：90
-- `jd_parser`：70
-- `resume_parser`：60
-
-这样可以保证组合型任务优先于单文档解析任务。
-
----
-
-## 7. Harness Engineering 设计思路
-
-本项目不仅关注 AI 功能本身，也关注 AI 系统的可控性与可交付性。为此，项目引入 Harness Engineering 思路，通过三层约束降低模型输出的不确定性。
-
-### 7.1 架构级约束
-
-通过 `rag/`、`agent/`、`tools/`、`backend/`、`app/` 等目录划分系统职责边界，避免功能耦合与模块混乱。
-
-### 7.2 质量级约束
-
-通过 `schemas/` 固定输入输出结构，通过 `prompts/` 管理模板，通过 `tests/` 与 `harness/checks/` 对关键行为进行验证。
-
-### 7.3 流程级约束
-
-通过 `config/` 管理关键配置，通过 `.github/workflows/ci.yml` 构建基础 CI 流程，为后续持续迭代与团队协作打基础。
-
-当前 router 的 priority 机制也是流程级约束的一部分：它通过配置文件显式规定任务路由优先级，避免多意图输入下出现不稳定行为。
-
----
-
-## 8. 快速开始
-
-### 8.1 创建环境
+### 9.1 创建环境
 
 推荐使用 Python 3.10。
 
@@ -259,7 +347,7 @@ python -m venv .venv
 
 Windows 激活：
 
-```powershell
+```bash
 .venv\Scripts\activate
 ```
 
@@ -269,17 +357,21 @@ Linux / Mac 激活：
 source .venv/bin/activate
 ```
 
-### 8.2 安装依赖
+---
+
+### 9.2 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 8.3 配置环境变量
+---
+
+### 9.3 配置环境变量
 
 Windows PowerShell：
 
-```powershell
+```bash
 $env:DASHSCOPE_API_KEY="你的APIKey"
 ```
 
@@ -289,23 +381,31 @@ Linux / Mac：
 export DASHSCOPE_API_KEY="你的APIKey"
 ```
 
-### 8.4 启动前端
+---
+
+### 9.4 启动前端
 
 ```bash
 streamlit run app/main.py
 ```
 
-### 8.5 启动后端（可选）
+---
+
+### 9.5 启动后端，可选
 
 ```bash
 uvicorn backend.main:app --reload
 ```
 
-默认访问：`http://127.0.0.1:8000`
+默认访问：
+
+```text
+http://127.0.0.1:8000
+```
 
 ---
 
-## 9. 数据准备
+## 10. 数据准备
 
 将原始数据放入以下目录：
 
@@ -329,110 +429,60 @@ uvicorn backend.main:app --reload
 
 ---
 
-## 10. RAG 具体实现流程（按代码执行顺序）
+## 11. 使用方式
 
-下面按一次完整问答请求的真实执行顺序，梳理当前项目中的 RAG 实现，并列出每个阶段使用的方法。
+### 11.1 RAG 问答
 
-### 10.1 请求入口与主流程调度
+在 Streamlit 的 `RAG 问答` tab 中输入问题，例如：
 
-- 入口方法：`backend/main.py` 中 `chat(req: ChatRequest)`
-- 核心调用：`rag/pipeline.py` 中 `answer_query(query, data_dir, top_k)`
-- 作用：接收用户问题与数据目录，进入统一 RAG 主流程。
+```text
+这个岗位主要要求哪些技能？
+```
 
-### 10.2 文档加载（Load）
+该模块会调用：
 
-- 主入口方法：`load_documents(data_dir)`
-- 文件分发方法：`load_file(file_path)`
-- 按类型加载方法：
-	- `load_txt(file_path)`
-	- `load_md(file_path)`
-	- `load_pdf(file_path)`
-- 关键实现点：
-	- 使用 `Path.rglob("*")` 扫描目录。
-	- 仅接收 `.txt/.md/.pdf`。
-	- PDF 在 `load_pdf` 中按页提取，保存 `pages`（含页码与页文本），为后续页级引用做准备。
-	- 输出统一为 `text + metadata` 结构（`source/file_name/file_type`）。
+- Qwen `text-embedding-v4`
+- Qwen `qwen-plus`
 
-### 10.3 文本切分（Chunk）
-
-- 切分基础方法：`split_text(text, chunk_size, chunk_overlap)`
-- 单文档切分方法：`chunk_document(doc, chunk_size, chunk_overlap)`
-- 批量切分方法：`chunk_documents(docs, chunk_size, chunk_overlap)`
-- 结构化载体：`schemas/document.py` 中 `DocumentChunk`
-- 关键实现点：
-	- 滑窗切分策略：`start -> end`，下一段从 `end - chunk_overlap` 开始。
-	- 参数约束：`chunk_size` 必须大于 `chunk_overlap`。
-	- PDF 先按页再切块，`chunk_id` 采用 `文件名_p页码_c块序号`；非 PDF 采用 `文件名_c块序号`。
-
-### 10.4 向量化与索引构建（Embed + Index）
-
-- 流程方法：
-	- `prepare_chunks(data_dir, chunk_size, chunk_overlap)`
-	- `prepare_retriever(data_dir, chunk_size, chunk_overlap)`
-- 检索器类：`QwenDenseRetriever`
-- 检索器核心方法：
-	- `__init__()`：加载配置与初始化 OpenAI 兼容客户端
-	- `_embed_texts(texts)`：调用 embedding 接口批量向量化
-	- `_normalize(vectors)`：向量归一化
-	- `build_index(chunks)`：为全部 chunk 建立内存索引
-- 关键实现点：
-	- 配置来源：`config/retrieval.yaml` 与 `config/model.yaml`。
-	- Embedding 模型：`text-embedding-v4`。
-	- 维度参数：`embedding_dimensions=1024`。
-	- 批处理参数：`batch_size`。
-	- 相似度准备：`normalize_embeddings=true` 时做 L2 归一化。
-
-### 10.5 相似度检索（Retrieve）
-
-- 检索方法：`QwenDenseRetriever.retrieve(query, top_k)`
-- 结果结构：`schemas/retrieval.py` 中 `RetrievalResult`
-- 关键实现点：
-	- 对 query 向量化后，与 chunk 向量做点积：`scores = np.dot(...)`。
-	- 使用 `np.argsort(scores)[::-1][:k]` 选取 Top-K。
-	- 返回字段包含 `chunk_id/text/score/source/file_name/file_type/page`。
-
-### 10.6 证据门控与拒答（Refuse Gate）
-
-- 判定方法：`should_refuse(retrieval_results, min_score_threshold)`
-- 配置来源：`config/answer.yaml`
-- 关键实现点：
-	- 无检索结果时直接拒答。
-	- 若 `top_score < min_score_threshold` 则拒答。
-	- 拒答返回使用 `refuse_message`，并标记：
-		- `grounded = False`
-		- `citations = []`
-
-### 10.7 上下文构建与答案生成（Generate）
-
-- 生成器类：`QwenGenerator`
-- 生成器核心方法：
-	- `__init__()`：加载模型配置与系统提示词
-	- `generate(query, contexts)`：拼接上下文并调用对话模型
-- 关键实现点：
-	- 提示词模板来自 `prompts/rag_answer.txt`。
-	- 生成模型来自 `config/model.yaml` 的 `qwen-plus`。
-	- `answer_query` 中按 `max_context_items` 截断上下文，避免引入过多低相关内容。
-
-### 10.8 引用构建与结构化输出（Citation + Response）
-
-- 引用构建方法：`build_citations(retrieval_results)`
-- 输出结构：`schemas/common.py` 中 `Citation` 与 `RAGResponse`
-- API 输出：`result.model_dump()`
-- 关键实现点：
-	- 通过 `(source, file_name, page, chunk_id)` 去重引用。
-	- 最终返回三要素：`answer`、`citations`、`grounded`。
-
-### 10.9 一次完整调用链总结
-
-`chat -> answer_query -> prepare_retriever -> load_documents -> chunk_documents -> build_index -> retrieve -> should_refuse -> (generate + build_citations) -> RAGResponse`
-
-这条链路已经覆盖当前项目的最小可用 RAG 闭环：从多源文档读取、切分、向量检索、证据门控、生成回答到引用化输出。
+因此会消耗 token。
 
 ---
 
-## 11. 示例检查方式
+### 11.2 JD / 简历匹配
 
-### 11.1 检查完整问答流程
+在 `JD/简历匹配` tab 中分别输入岗位 JD 和简历文本。
+
+输出包括：
+
+- 岗位解析结果
+- 简历解析结果
+- 匹配技能
+- 缺失技能
+- 修改建议
+- 匹配分数
+
+该模块当前为规则版工具，不调用 Qwen，不消耗 token。
+
+---
+
+### 11.3 面试题生成
+
+在 `面试题生成` tab 中输入岗位 JD 和简历文本。
+
+输出包括：
+
+- 基础问题
+- 技能问题
+- 差距追问
+- 项目问题
+
+该模块当前为规则版工具，不调用 Qwen，不消耗 token。
+
+---
+
+## 12. 示例检查方式
+
+### 12.1 检查完整问答流程
 
 ```python
 from rag.pipeline import answer_query
@@ -443,18 +493,9 @@ print(result.model_dump())
 
 注意：该流程会调用 Qwen Embedding 与 Qwen Generation，会消耗 token。
 
-### 11.2 检查拒答逻辑
+---
 
-```python
-from rag.pipeline import answer_query
-
-result = answer_query("今天天气怎么样？", "data", top_k=3)
-print(result.model_dump())
-```
-
-注意：该流程会调用 Qwen Embedding；若未触发拒答，还会调用 Qwen Generation。
-
-### 11.3 检查 router
+### 12.2 检查 Router
 
 ```python
 from agent.router import route_query
@@ -464,124 +505,183 @@ print(route_query("根据我的简历和岗位 JD 生成面试题"))
 print(route_query("帮我解析这份简历"))
 ```
 
-该检查不调用 Qwen，不消耗 token。
+该流程不调用 Qwen，不消耗 token。
 
-### 11.4 运行单元测试
+---
+
+### 12.3 检查 Skill Matcher
+
+```python
+from tools.skill_matcher import match_skills
+
+jd_text = "岗位要求：熟悉 Python、RAG、FastAPI、Docker。"
+resume_text = "技能：Python, RAG, FastAPI。"
+
+result = match_skills(jd_text, resume_text)
+print(result.model_dump())
+```
+
+该流程不调用 Qwen，不消耗 token。
+
+---
+
+### 12.4 运行单元测试
 
 ```bash
 pytest tests/unit -v
 ```
 
+单元测试主要验证 schema、loader、chunker、router、tools、answer logic 等本地逻辑，默认不调用 Qwen，不消耗 token。
+
 ---
 
-## 12. 当前限制与后续优化
+## 13. Harness Engineering 设计说明
 
-### 12.1 Router 仍是规则版
+### 13.1 架构级约束
 
-当前 router 已升级为 priority-based router，但本质仍属于规则路由。
+通过以下目录划分系统职责：
 
-当前优点：
+- `rag/`：负责文档问答主链路
+- `agent/`：负责路由和工具编排
+- `tools/`：负责具体可调用工具
+- `schemas/`：负责输入输出结构约束
+- `prompts/`：负责 prompt 模板管理
+- `config/`：负责系统行为配置
+- `tests/`：负责核心逻辑验证
+- `harness/`：负责质量检查与后续评测
+
+---
+
+### 13.2 质量级约束
+
+项目通过以下方式降低 AI 系统不确定性：
+
+- Pydantic Schema 约束结构化输出
+- Prompt 模板外置，避免散落在代码中
+- Router 规则配置化，避免硬编码
+- 单元测试覆盖核心本地逻辑
+- 后续计划增加 benchmark / regression harness
+
+---
+
+### 13.3 流程级约束
+
+项目通过以下方式增强可维护性：
+
+- 使用 `config/*.yaml` 管理参数
+- 使用 Git 记录开发过程
+- 使用 GitHub Actions 执行基础 CI
+- 后续计划引入更完整的 checks 与 regression tests
+
+---
+
+## 14. 当前限制与后续优化
+
+### 14.1 Router 仍是规则版
+
+当前 router 已支持 priority-based routing，但本质上仍是规则路由。
+
+后续计划：
+
+- 引入 scoring router
+- 支持规则置信度计算
+- 当规则置信度较低时，调用 Qwen 做 LLM router fallback
+- 支持复杂任务的 multi-step planner
+
+---
+
+### 14.2 Tools 当前为规则版
+
+当前 JD Parser、Resume Parser、Skill Matcher、Interview Question Generator 均为规则版。
+
+优点：
 
 - 稳定
 - 可测试
 - 不消耗 token
-- 行为可控
+- 工程可控
 
-当前限制：
+限制：
 
-- 对复杂表达的泛化能力有限
-- 对多意图任务仍是 priority 粗粒度处理
-- 无法主动判断用户信息是否缺失
-
-后续计划：
-
-- Scoring Router：在 priority 基础上加入关键词命中数量、任务类型权重等得分机制。
-- Rule Router + LLM Router Fallback：规则置信度较低时再调用 Qwen 进行意图判断。
-- Multi-step Planner：对复杂任务进行拆解（先解析 JD，再解析简历，再做匹配与建议生成）。
-
-### 12.2 面试题生成仍需优化
-
-当前项目已保留 Interview Question Generator 模块，但后续仍需增强问题质量。
-
-当前问题：
-
-- 固定模板生成的问题较机械
-- 对不同岗位的针对性不足
-- 对简历项目的深挖不够
-- 缺少基于短板的自然追问
+- 对自然语言表达泛化能力有限
+- 对复杂 JD / 简历解析能力较弱
+- 面试题生成仍偏模板化
 
 后续计划：
 
-- 问题类型分层：基础问题、技术问题、项目深挖、差距追问、行为面问题。
-- 技术题库增强：围绕 RAG、Embedding、BM25、Reranker、FastAPI、Agent、Docker 等维护模板。
-- 基于匹配结果生成追问：根据 missing skills 自动生成差距追问。
-- Qwen-based Interview Generator：结合 JD 解析、简历解析与技能匹配结果生成更自然问题。
-
-### 12.3 Tool 模块仍需完善
-
-`tools/` 目录已建立，但 JD Parser、Resume Parser、Skill Matcher、Interview Generator 仍有提升空间。
-
-后续目标：
-
-- 提升 JD 技能抽取准确率
-- 提升简历项目与技能解析质量
-- 引入结构化输出校验
-- 增加工具模块单元测试
-- 将工具结果更紧密接入 Agent Workflow
+- 引入 Qwen-based JD Parser
+- 引入 Qwen-based Resume Parser
+- 引入 Qwen-based Interview Question Generator
+- 保留 rule-based tools 作为低成本稳定 baseline
 
 ---
 
-## 13. 后续开发计划
+### 14.3 检索模块仍是 Dense Retrieval
 
-### 阶段一：完善工具逻辑
+当前检索模块仅支持 Qwen Embedding + Dense Retrieval。
 
-- 完成 JD Parser
-- 完成 Resume Parser
-- 完成 Skill Matcher
-- 完成 Interview Question Generator
-
-### 阶段二：优化 Agent Workflow
-
-- 完善 priority router
-- 引入 scoring router
-- 增加 LLM fallback router
-- 支持多步任务编排
-
-### 阶段三：补强 Harness Engineering
-
-- 完善 checks
-- 引入 benchmark / regression
-- 完善 tests
-- 扩展 CI 质量门禁
-
-### 阶段四：增强检索效果
+后续计划：
 
 - 接入 BM25
 - 接入 Hybrid Retrieval
 - 接入 Reranker
-- 输出检索评测结果
-
-### 阶段五：增强回答质量
-
-- 优化 citation 展示
-- 优化 grounded answer
-- 增强拒答策略
-- 完善端到端 workflow
+- 构建 retrieval benchmark
+- 输出 Recall@K / MRR 等指标
 
 ---
 
-## 14. 项目价值
+## 15. 后续开发计划
+
+### 阶段一：完善工具链
+
+- 优化 JD Parser
+- 优化 Resume Parser
+- 优化 Skill Matcher
+- 优化 Interview Question Generator
+
+### 阶段二：增强 Agent Workflow
+
+- Scoring Router
+- LLM Router Fallback
+- Multi-step Planner
+- 工具调用结果校验
+
+### 阶段三：增强 RAG 检索质量
+
+- BM25
+- Hybrid Retrieval
+- Reranker
+- Retrieval Evaluation
+
+### 阶段四：补强 Harness Engineering
+
+- Schema checks
+- Prompt checks
+- Tool contract checks
+- Regression benchmark
+- CI quality gate
+
+### 阶段五：增强展示能力
+
+- 增加 demo screenshots
+- 增加 sample data
+- 增加项目架构图
+- 增加部署说明
+
+---
+
+## 16. 项目价值
 
 相比普通的 RAG Demo，本项目更强调：
 
 - 场景化：围绕岗位 JD、简历与技术文档的真实求职场景设计
 - 工程化：通过模块划分、Schema、配置、测试与 CI 提高可维护性
 - 可控性：通过 Harness Engineering 思路约束 AI 输出行为
-- 可扩展性：通过 Agent Router 与 Tools 结构支持后续多任务扩展
+- 可扩展性：通过 Agent Router 与 Tools 结构支持多任务扩展
 - 可展示性：兼具 GitHub 项目展示、简历项目描述与面试讲解价值
 
 ---
 
-## 15. License
+## 17. License
 
 当前仅用于个人学习、项目展示与求职场景实践，后续可根据需要补充正式 License。

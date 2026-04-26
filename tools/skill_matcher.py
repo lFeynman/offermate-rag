@@ -4,7 +4,7 @@ from tools.resume_parser import parse_resume
 
 
 def normalize_skill(skill: str) -> str:
-    return skill.lower().replace(" ", "").replace("-", "")
+    return skill.lower().replace(" ", "").replace("-", "").replace("_", "")
 
 
 def match_skills(jd_text: str, resume_text: str) -> MatchResult:
