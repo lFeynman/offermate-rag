@@ -6,18 +6,21 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
 import streamlit as st
+
 from rag.pipeline import answer_query
-from tools.jd_parser import parse_jd
-from tools.resume_parser import parse_resume
-from tools.skill_matcher import match_skills
-from tools.interview_generator import generate_interview_questions
+from agent.workflow import run_workflow
+from agent.router import route_query
+
 
 st.set_page_config(page_title="OfferMate-RAG", layout="wide")
 
 st.title("OfferMate-RAG")
 st.subheader("面向岗位 JD 与技术文档的检索增强智能助手")
 
-tab_chat, tab_match, tab_interview = st.tabs(["RAG 问答", "JD/简历匹配", "面试题生成"])
+tab_chat, tab_match, tab_interview, tab_router = st.tabs(
+    ["RAG 问答", "JD/简历匹配", "面试题生成", "Router 调试"]
+)
+
 
 with tab_chat:
     st.markdown("### RAG 问答")
@@ -45,9 +48,10 @@ with tab_chat:
             else:
                 st.write("无引用")
 
+
 with tab_match:
     st.markdown("### JD / 简历匹配分析")
-    st.caption("该模块为规则版工具，不调用 Qwen，不消耗 token。")
+    st.caption("该模块通过 Agent Workflow 调用规则版 tools，不调用 Qwen，不消耗 token。")
 
     jd_text = st.text_area("粘贴岗位 JD", height=220)
     resume_text = st.text_area("粘贴简历文本", height=220)
@@ -56,22 +60,38 @@ with tab_match:
         if not jd_text.strip() or not resume_text.strip():
             st.warning("请同时输入岗位 JD 和简历文本。")
         else:
-            jd_info = parse_jd(jd_text)
-            resume_info = parse_resume(resume_text)
-            match_result = match_skills(jd_text, resume_text)
+            jd_result = run_workflow(
+                query="解析岗位要求",
+                jd_text=jd_text
+            )
+
+            resume_result = run_workflow(
+                query="解析简历",
+                resume_text=resume_text
+            )
+
+            match_result = run_workflow(
+                query="我的简历和岗位匹配吗",
+                jd_text=jd_text,
+                resume_text=resume_text
+            )
 
             st.markdown("### 岗位解析结果")
-            st.json(jd_info.model_dump())
+            st.json(jd_result.result)
 
             st.markdown("### 简历解析结果")
-            st.json(resume_info.model_dump())
+            st.json(resume_result.result)
 
             st.markdown("### 匹配分析")
-            st.json(match_result.model_dump())
+            if match_result.success:
+                st.json(match_result.result)
+            else:
+                st.error(match_result.error)
+
 
 with tab_interview:
     st.markdown("### 面试题生成")
-    st.caption("该模块为规则版工具，不调用 Qwen，不消耗 token。")
+    st.caption("该模块通过 Agent Workflow 调用规则版工具，不调用 Qwen，不消耗 token。")
 
     jd_text_q = st.text_area("粘贴岗位 JD", height=200, key="jd_for_questions")
     resume_text_q = st.text_area("粘贴简历文本", height=200, key="resume_for_questions")
@@ -80,20 +100,46 @@ with tab_interview:
         if not jd_text_q.strip() or not resume_text_q.strip():
             st.warning("请同时输入岗位 JD 和简历文本。")
         else:
-            questions = generate_interview_questions(jd_text_q, resume_text_q)
+            result = run_workflow(
+                query="根据我的简历和岗位 JD 生成面试题",
+                jd_text=jd_text_q,
+                resume_text=resume_text_q
+            )
 
-            st.markdown("### 基础问题")
-            for q in questions["basic_questions"]:
-                st.write(f"- {q}")
+            if not result.success:
+                st.error(result.error)
+            else:
+                questions = result.result
 
-            st.markdown("### 技能问题")
-            for q in questions["skill_questions"]:
-                st.write(f"- {q}")
+                st.markdown("### 基础问题")
+                for q in questions.get("basic_questions", []):
+                    st.write(f"- {q}")
 
-            st.markdown("### 差距追问")
-            for q in questions["gap_questions"]:
-                st.write(f"- {q}")
+                st.markdown("### 技能问题")
+                for q in questions.get("skill_questions", []):
+                    st.write(f"- {q}")
 
-            st.markdown("### 项目问题")
-            for q in questions["project_questions"]:
-                st.write(f"- {q}")
+                st.markdown("### 差距追问")
+                for q in questions.get("gap_questions", []):
+                    st.write(f"- {q}")
+
+                st.markdown("### 项目问题")
+                for q in questions.get("project_questions", []):
+                    st.write(f"- {q}")
+
+
+with tab_router:
+    st.markdown("### Router 调试")
+    st.caption("该模块用于查看用户请求会被路由到哪个任务。不会调用 Qwen。")
+
+    router_query = st.text_input(
+        "输入一句用户请求",
+        placeholder="例如：帮我分析我的简历和这个岗位是否匹配"
+    )
+
+    if st.button("查看路由结果"):
+        if not router_query.strip():
+            st.warning("请输入请求。")
+        else:
+            route = route_query(router_query)
+            st.write(f"路由结果：`{route}`")

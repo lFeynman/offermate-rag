@@ -1,0 +1,30 @@
+tools:
+  jd_parser:
+    enabled: true
+    mode: rule_based
+    required_inputs:
+      - jd_text
+    output_schema: JDInfo
+
+  resume_parser:
+    enabled: true
+    mode: rule_based
+    required_inputs:
+      - resume_text
+    output_schema: ResumeInfo
+
+  skill_matcher:
+    enabled: true
+    mode: rule_based
+    required_inputs:
+      - jd_text
+      - resume_text
+    output_schema: MatchResult
+
+  interview_generator:
+    enabled: true
+    mode: rule_based
+    required_inputs:
+      - jd_text
+      - resume_text
+    output_schema: InterviewQuestionSet

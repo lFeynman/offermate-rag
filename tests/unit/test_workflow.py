@@ -1,4 +1,5 @@
 from agent.workflow import run_workflow
+from schemas.agent import WorkflowResult
 
 
 def test_workflow_skill_matcher():
@@ -11,8 +12,10 @@ def test_workflow_skill_matcher():
         resume_text=resume_text
     )
 
-    assert result["route"] == "skill_matcher"
-    assert "matched_skills" in result["result"]
+    assert isinstance(result, WorkflowResult)
+    assert result.route == "skill_matcher"
+    assert result.success is True
+    assert "matched_skills" in result.result
 
 
 def test_workflow_jd_parser():
@@ -21,5 +24,7 @@ def test_workflow_jd_parser():
         jd_text="岗位要求：熟悉 Python、RAG。"
     )
 
-    assert result["route"] == "jd_parser"
-    assert "required_skills" in result["result"]
+    assert isinstance(result, WorkflowResult)
+    assert result.route == "jd_parser"
+    assert result.success is True
+    assert "required_skills" in result.result

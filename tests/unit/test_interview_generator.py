@@ -1,4 +1,5 @@
 from tools.interview_generator import generate_interview_questions
+from schemas.interview import InterviewQuestionSet
 
 
 def test_generate_interview_questions():
@@ -13,8 +14,8 @@ def test_generate_interview_questions():
 
     result = generate_interview_questions(jd_text, resume_text)
 
-    assert "basic_questions" in result
-    assert "skill_questions" in result
-    assert "gap_questions" in result
-    assert "project_questions" in result
-    assert len(result["basic_questions"]) > 0
+    assert isinstance(result, InterviewQuestionSet)
+    assert len(result.basic_questions) > 0
+    assert len(result.skill_questions) > 0
+    assert isinstance(result.gap_questions, list)
+    assert isinstance(result.project_questions, list)

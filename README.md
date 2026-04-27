@@ -1,9 +1,18 @@
 # OfferMate-RAG：面向岗位 JD 与技术文档的检索增强智能助手
 
-OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求职助手项目，以 **RAG（Retrieval-Augmented Generation）** 为核心，以 **Agent Workflow + Tool Calling** 为增强，并引入 **Harness Engineering** 思路，通过模块边界、Schema 约束、Prompt 模板管理、配置中心、测试与 CI 质量门禁，将 AI 能力收敛为可控、可复现、可交付的工程流程。
+OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求职助手项目，以 **RAG（Retrieval-Augmented Generation）** 为核心，以 **Agent Workflow + Tool Calling** 为增强，并引入 **Harness Engineering** 思路，通过模块边界、Schema 约束、Prompt 模板管理、配置中心、Tool Contract、测试与 CI 质量门禁，将 AI 能力收敛为可控、可复现、可交付的工程流程。
 
-本项目面向大模型应用与 AI 工程场景，重点关注：  
-**文档问答、岗位解析、简历解析、技能匹配、面试题生成、工程约束与系统可维护性。**
+本项目面向大模型应用与 AI 工程场景，重点关注：
+
+- 文档问答
+- 岗位 JD 解析
+- 简历解析
+- 技能匹配
+- 面试题生成
+- Agent Workflow
+- Tool Contract
+- Harness Engineering
+- AI 系统可维护性与可控性
 
 ---
 
@@ -16,7 +25,7 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 - 对用户请求进行任务路由，并调用对应工具模块
 - 解析岗位要求与简历内容，完成技能匹配分析
 - 根据岗位与简历生成针对性面试问题
-- 通过 Harness Engineering 降低 AI 系统输出的不确定性，提升可控性与可维护性
+- 通过 Harness Engineering 降低 AI 系统输出的不确定性，提升系统可控性与可维护性
 
 ---
 
@@ -36,6 +45,8 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 
 - 支持 config-driven priority router
 - 支持根据用户请求路由到不同任务路径
+- 通过 `Tool Registry` 统一管理可调用工具
+- 通过 `WorkflowResult` 统一约束 workflow 输出结构
 - 当前支持任务类型：
   - RAG 问答
   - JD Parser
@@ -52,6 +63,16 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 - `Skill Matcher`：对比 JD 与简历，输出匹配技能、缺失技能、建议补充项和匹配分数
 - `Interview Question Generator`：基于岗位要求、简历内容和技能差距生成分类型面试问题
 
+当前 tools 采用 **schema-based output**：
+
+- `JD Parser` 返回 `JDInfo`
+- `Resume Parser` 返回 `ResumeInfo`
+- `Skill Matcher` 返回 `MatchResult`
+- `Interview Question Generator` 返回 `InterviewQuestionSet`
+- `Agent Workflow` 返回 `WorkflowResult`
+
+这使得工具输出不再是随意的 dict，而是具备固定字段、固定类型和可测试性的结构化结果。
+
 ### 2.4 Harness Engineering
 
 本项目不仅关注 AI 功能本身，也关注 AI 系统的稳定交付。当前通过以下方式体现 Harness Engineering：
@@ -59,7 +80,8 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 - 模块化架构：`rag / agent / tools / schemas / prompts / config / harness / tests`
 - Schema 约束：使用 Pydantic 固定核心输入输出结构
 - Prompt 外置：将 prompt 模板从代码中分离
-- 配置中心：统一管理模型、检索、回答、路由等配置
+- 配置中心：统一管理模型、检索、回答、路由、工具契约等配置
+- Tool Contract：通过 `config/tool.yaml` 声明工具输入、运行模式与输出结构
 - 测试体系：使用 PyTest 对核心模块进行基础测试
 - CI 质量门禁：使用 GitHub Actions 执行基础测试流程
 
@@ -85,17 +107,17 @@ flowchart TD
     C5 --> C6[Qwen qwen-plus 回答生成]
     C6 --> C7[RAGResponse: answer + citations + grounded]
 
-    D --> D1[岗位技能/学历/职责抽取]
-    E --> E1[简历技能/教育/项目/奖项抽取]
-    F --> F1[JDInfo + ResumeInfo 对比]
-    F1 --> F2[matched_skills / missing_skills / suggestions / match_score]
-    G --> G1[基础题/技能题/差距追问/项目题]
+    D --> D1[JDInfo Schema]
+    E --> E1[ResumeInfo Schema]
+    F --> F1[MatchResult Schema]
+    G --> G1[InterviewQuestionSet Schema]
 
+    D1 --> W[WorkflowResult]
+    E1 --> W
+    F1 --> W
+    G1 --> W
     C7 --> H[Streamlit 前端展示]
-    D1 --> H
-    E1 --> H
-    F2 --> H
-    G1 --> H
+    W --> H
 
     H --> I[用户查看结果]
 
@@ -103,6 +125,7 @@ flowchart TD
         J[schemas: 输出结构约束]
         K[prompts: Prompt 模板管理]
         L[config: 参数配置中心]
+        TC[tool.yaml: Tool Contract]
         M[tests: 单元测试]
         N[CI: GitHub Actions]
     end
@@ -115,6 +138,10 @@ flowchart TD
     B --> L
     C --> K
     C --> L
+    D --> TC
+    E --> TC
+    F --> TC
+    G --> TC
     M --> N
 ```
 
@@ -213,9 +240,15 @@ flowchart TD
 - [x] Interview Question Generator 增强规则版
 - [x] Agent Tool Registry
 - [x] Agent Workflow 初版
-- [x] Streamlit 支持 RAG 问答、JD/简历匹配、面试题生成
+- [x] `WorkflowResult` 统一 workflow 输出结构
+- [x] `InterviewQuestionSet` 统一面试题输出结构
+- [x] Tool Contract 配置文件 `config/tool.yaml`
+- [x] Harness Tool Contract Check
+- [x] Harness Workflow Check
+- [x] Streamlit 支持 RAG 问答、JD/简历匹配、面试题生成、Router 调试
 - [x] 基础 Harness Checks
 - [x] GitHub Actions CI 初版
+- [x] 单元测试覆盖核心本地逻辑
 
 ### 开发中
 
@@ -253,12 +286,14 @@ offermate-rag/
 │   ├── skill_matcher.py
 │   └── interview_generator.py
 ├── schemas/                      # 统一输入输出约束
-│   ├── common.py
-│   ├── jd.py
-│   ├── resume.py
-│   ├── match.py
-│   ├── document.py
-│   └── retrieval.py
+│   ├── common.py                 # Citation / RAGResponse
+│   ├── jd.py                     # JDInfo
+│   ├── resume.py                 # ResumeInfo / ProjectInfo
+│   ├── match.py                  # MatchResult
+│   ├── document.py               # DocumentChunk
+│   ├── retrieval.py              # RetrievalResult
+│   ├── interview.py              # InterviewQuestionSet
+│   └── agent.py                  # WorkflowResult
 ├── prompts/                      # Prompt 模板管理
 │   ├── rag_answer.txt
 │   ├── router.txt
@@ -269,11 +304,14 @@ offermate-rag/
 │   ├── retrieval.yaml
 │   ├── workflow.yaml
 │   ├── model.yaml
-│   └── answer.yaml
+│   ├── answer.yaml
+│   └── tool.yaml
 ├── harness/                      # Harness Engineering 相关检查与验证
 │   ├── checks/
 │   │   ├── schema_check.py
-│   │   └── route_check.py
+│   │   ├── route_check.py
+│   │   ├── tool_contract_check.py
+│   │   └── workflow_check.py
 │   ├── eval/
 │   └── runner.py
 ├── tests/                        # 测试层
@@ -310,9 +348,11 @@ offermate-rag/
 
 - Config-driven Router
 - Priority-based Routing
-- Tool Calling
+- Tool Registry
+- Tool Contract
 - Rule-based Tools
 - Agent Workflow
+- WorkflowResult 统一输出
 
 ### 后端与前端
 
@@ -461,7 +501,7 @@ http://127.0.0.1:8000
 - 修改建议
 - 匹配分数
 
-该模块当前为规则版工具，不调用 Qwen，不消耗 token。
+该模块当前为规则版工具，通过 Agent Workflow 调用，不调用 Qwen，不消耗 token。
 
 ---
 
@@ -476,7 +516,27 @@ http://127.0.0.1:8000
 - 差距追问
 - 项目问题
 
-该模块当前为规则版工具，不调用 Qwen，不消耗 token。
+该模块当前为规则版工具，通过 Agent Workflow 调用，不调用 Qwen，不消耗 token。
+
+---
+
+### 11.4 Router 调试
+
+在 `Router 调试` tab 中输入用户请求，可以查看该请求会被路由到哪个任务。
+
+例如：
+
+```text
+帮我分析我的简历和这个岗位是否匹配
+```
+
+预期路由结果：
+
+```text
+skill_matcher
+```
+
+该模块不调用 Qwen，不消耗 token。
 
 ---
 
@@ -525,13 +585,31 @@ print(result.model_dump())
 
 ---
 
-### 12.4 运行单元测试
+### 12.4 检查 Workflow
+
+```python
+from agent.workflow import run_workflow
+
+result = run_workflow(
+    query="我的简历和岗位匹配吗",
+    jd_text="岗位要求：熟悉 Python、RAG、FastAPI。",
+    resume_text="技能：Python, RAG。"
+)
+
+print(result.model_dump())
+```
+
+该流程不调用 Qwen，不消耗 token。
+
+---
+
+### 12.5 运行单元测试
 
 ```bash
 pytest tests/unit -v
 ```
 
-单元测试主要验证 schema、loader、chunker、router、tools、answer logic 等本地逻辑，默认不调用 Qwen，不消耗 token。
+单元测试主要验证 schema、loader、chunker、router、tools、workflow、answer logic 等本地逻辑，默认不调用 Qwen，不消耗 token。
 
 ---
 
@@ -559,6 +637,8 @@ pytest tests/unit -v
 - Pydantic Schema 约束结构化输出
 - Prompt 模板外置，避免散落在代码中
 - Router 规则配置化，避免硬编码
+- Tool Contract 声明工具输入和输出结构
+- WorkflowResult 统一 Agent Workflow 输出
 - 单元测试覆盖核心本地逻辑
 - 后续计划增加 benchmark / regression harness
 
@@ -569,6 +649,7 @@ pytest tests/unit -v
 项目通过以下方式增强可维护性：
 
 - 使用 `config/*.yaml` 管理参数
+- 使用 `config/tool.yaml` 管理工具契约
 - 使用 Git 记录开发过程
 - 使用 GitHub Actions 执行基础 CI
 - 后续计划引入更完整的 checks 与 regression tests
@@ -677,7 +758,7 @@ pytest tests/unit -v
 - 场景化：围绕岗位 JD、简历与技术文档的真实求职场景设计
 - 工程化：通过模块划分、Schema、配置、测试与 CI 提高可维护性
 - 可控性：通过 Harness Engineering 思路约束 AI 输出行为
-- 可扩展性：通过 Agent Router 与 Tools 结构支持多任务扩展
+- 可扩展性：通过 Agent Router、Tool Contract 与 WorkflowResult 支持后续多任务扩展
 - 可展示性：兼具 GitHub 项目展示、简历项目描述与面试讲解价值
 
 ---

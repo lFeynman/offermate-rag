@@ -1,6 +1,7 @@
 from tools.skill_matcher import match_skills
 from tools.jd_parser import parse_jd
 from tools.resume_parser import parse_resume
+from schemas.interview import InterviewQuestionSet
 
 TECH_QUESTION_BANK = {
     "RAG": [
@@ -94,9 +95,9 @@ def generate_interview_questions(jd_text: str, resume_text: str) -> dict:
 
     gap_questions = generate_gap_questions(match_result.missing_skills)
     project_questions = generate_project_questions(resume_info)
-    return {
-        "basic_questions": basic_questions,
-        "skill_questions": skill_questions,
-        "gap_questions": gap_questions,
-        "project_questions": project_questions
-    }
+    return InterviewQuestionSet(
+        basic_questions=basic_questions,
+        skill_questions=skill_questions,
+        gap_questions=gap_questions,
+        project_questions=project_questions
+    )
