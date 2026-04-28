@@ -10,3 +10,4 @@ class RetrievalResult(BaseModel):
     file_name: str
     file_type: str
     page: Optional[int] = None
+    retrieval_type:str='dense'

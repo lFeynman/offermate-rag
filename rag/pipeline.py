@@ -3,7 +3,7 @@ import yaml
 
 from rag.loader import load_documents
 from rag.chunker import chunk_documents
-from rag.retriever import QwenDenseRetriever
+from rag.retriever import get_retriever_from_config
 from rag.generator import QwenGenerator
 from schemas.common import Citation, RAGResponse
 
@@ -24,7 +24,7 @@ def prepare_chunks(data_dir: str, chunk_size: int = 500, chunk_overlap: int = 10
 
 def prepare_retriever(data_dir: str, chunk_size: int = 500, chunk_overlap: int = 100):
     chunks = prepare_chunks(data_dir, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    retriever = QwenDenseRetriever()
+    retriever = get_retriever_from_config()
     retriever.build_index(chunks)
     return retriever
 

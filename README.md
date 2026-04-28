@@ -9,6 +9,7 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 - 简历解析
 - 技能匹配
 - 面试题生成
+- Dense / BM25 / Hybrid Retrieval
 - Agent Workflow
 - Tool Contract
 - Harness Engineering
@@ -22,6 +23,7 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 
 - 基于岗位 JD、简历与技术文档进行问答
 - 输出带引用的可信回答
+- 支持 Qwen Embedding 向量检索、BM25 关键词检索与 Hybrid Retrieval
 - 对用户请求进行任务路由，并调用对应工具模块
 - 解析岗位要求与简历内容，完成技能匹配分析
 - 根据岗位与简历生成针对性面试问题
@@ -35,13 +37,37 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 
 - 支持 PDF / TXT / Markdown 文档加载
 - 支持文本 chunk 切分
-- 使用 Qwen `text-embedding-v4` 构建向量检索
-- 使用 Qwen `qwen-plus` 生成回答
+- 支持 Qwen `text-embedding-v4` 向量检索
+- 支持 BM25 关键词检索
+- 支持 Hybrid Retrieval 混合检索
+- 支持 Qwen `qwen-plus` 回答生成
 - 支持 citation-aware answer
 - 支持基础拒答机制
 - 返回结构化 `RAGResponse`
 
-### 2.2 Agent Workflow
+### 2.2 Retrieval 检索能力
+
+当前检索模块支持三种模式：
+
+| 模式 | 是否调用 Qwen | 说明 |
+|---|---|---|
+| `dense` | 是 | 使用 Qwen `text-embedding-v4` 进行向量检索 |
+| `bm25` | 否 | 使用 BM25 进行关键词检索 |
+| `hybrid` | 是 | 融合 Dense Retrieval 与 BM25 Retrieval |
+
+可通过 `config/retrieval.yaml` 配置切换：
+
+```yaml
+retrieval_mode: bm25
+```
+
+可选值：
+
+```text
+dense / bm25 / hybrid
+```
+
+### 2.3 Agent Workflow
 
 - 支持 config-driven priority router
 - 支持根据用户请求路由到不同任务路径
@@ -54,7 +80,7 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
   - Skill Matcher
   - Interview Question Generator
 
-### 2.3 Tool Calling
+### 2.4 Tool Calling
 
 当前已实现规则版工具模块：
 
@@ -73,7 +99,7 @@ OfferMate-RAG 是一个面向岗位 JD、简历与技术文档场景的智能求
 
 这使得工具输出不再是随意的 dict，而是具备固定字段、固定类型和可测试性的结构化结果。
 
-### 2.4 Harness Engineering
+### 2.5 Harness Engineering
 
 本项目不仅关注 AI 功能本身，也关注 AI 系统的稳定交付。当前通过以下方式体现 Harness Engineering：
 
@@ -101,11 +127,18 @@ flowchart TD
 
     C --> C1[文档加载 Loader]
     C1 --> C2[文本切分 Chunker]
-    C2 --> C3[Qwen text-embedding-v4 向量编码]
-    C3 --> C4[Dense Retrieval 相似度检索]
-    C4 --> C5[Top-K Contexts]
-    C5 --> C6[Qwen qwen-plus 回答生成]
-    C6 --> C7[RAGResponse: answer + citations + grounded]
+    C2 --> C3{Retrieval Mode}
+
+    C3 -->|dense| C4[Qwen text-embedding-v4 Dense Retrieval]
+    C3 -->|bm25| C5[BM25 Keyword Retrieval]
+    C3 -->|hybrid| C6[Dense + BM25 Hybrid Retrieval]
+
+    C4 --> C7[Top-K Contexts]
+    C5 --> C7
+    C6 --> C7
+
+    C7 --> C8[Qwen qwen-plus 回答生成]
+    C8 --> C9[RAGResponse: answer + citations + grounded]
 
     D --> D1[JDInfo Schema]
     E --> E1[ResumeInfo Schema]
@@ -116,7 +149,7 @@ flowchart TD
     E1 --> W
     F1 --> W
     G1 --> W
-    C7 --> H[Streamlit 前端展示]
+    C9 --> H[Streamlit 前端展示]
     W --> H
 
     H --> I[用户查看结果]
@@ -162,34 +195,40 @@ flowchart TD
 
     E --> E1[Chunk Metadata:<br/>chunk_id<br/>source<br/>file_name<br/>file_type<br/>page]
 
-    E1 --> F[Embedding 编码]
-    F --> F1[使用方法:<br/>Qwen text-embedding-v4<br/>OpenAI-compatible API<br/>embedding_dimensions = 1024]
+    E1 --> F{Retrieval Mode}
 
-    F1 --> G[向量索引构建]
-    G --> G1[使用方法:<br/>内存向量矩阵<br/>normalize embeddings<br/>cosine similarity / dot product]
+    F -->|dense| G[Dense Retrieval]
+    G --> G1[方法:<br/>Qwen text-embedding-v4<br/>Embedding 维度 1024<br/>向量相似度排序]
 
-    H[用户 Query] --> I[Query Embedding]
-    I --> I1[使用方法:<br/>Qwen text-embedding-v4<br/>同一 embedding 模型编码 query]
+    F -->|bm25| H[BM25 Retrieval]
+    H --> H1[方法:<br/>rank-bm25<br/>简单中英文 tokenizer<br/>关键词相关性排序]
 
-    G1 --> J[Dense Retrieval]
-    I1 --> J
-    J --> J1[使用方法:<br/>向量相似度排序<br/>返回 Top-K chunks]
+    F -->|hybrid| I[Hybrid Retrieval]
+    I --> I1[方法:<br/>Dense Score + BM25 Score<br/>min-max normalization<br/>hybrid_alpha 加权融合]
 
-    J1 --> K[Context Assembly]
-    K --> K1[使用方法:<br/>将 Top-K chunks 拼接为上下文<br/>保留 citation metadata]
+    J[用户 Query] --> K[Query Processing]
+    K --> K1[Dense 模式:<br/>Qwen Embedding 编码 query]
+    K --> K2[BM25 模式:<br/>simple_tokenize query]
 
-    K1 --> L{是否满足回答阈值?}
-    L -->|top score 低于阈值| M[拒答]
-    M --> M1[返回:<br/>grounded = false<br/>citations = empty]
+    G1 --> L[Top-K Chunks]
+    H1 --> L
+    I1 --> L
 
-    L -->|top score 达到阈值| N[Generator 回答生成]
-    N --> N1[使用方法:<br/>Qwen qwen-plus<br/>temperature = 0.2<br/>grounded prompt]
+    L --> M[Context Assembly]
+    M --> M1[方法:<br/>拼接 Top-K chunks<br/>保留 citation metadata]
 
-    N1 --> O[Citation Builder]
-    O --> O1[使用方法:<br/>根据 retrieval metadata 构建 citations]
+    M1 --> N{是否满足回答阈值?}
+    N -->|top score 低于阈值| O[拒答]
+    O --> O1[返回:<br/>grounded = false<br/>citations = empty]
 
-    O1 --> P[RAGResponse]
-    P --> P1[输出结构:<br/>answer<br/>citations<br/>grounded]
+    N -->|top score 达到阈值| P[Generator 回答生成]
+    P --> P1[方法:<br/>Qwen qwen-plus<br/>temperature = 0.2<br/>grounded prompt]
+
+    P1 --> Q[Citation Builder]
+    Q --> Q1[方法:<br/>根据 retrieval metadata 构建 citations]
+
+    Q1 --> R[RAGResponse]
+    R --> R1[输出结构:<br/>answer<br/>citations<br/>grounded]
 ```
 
 ---
@@ -201,12 +240,14 @@ flowchart TD
 | 文档加载 | `rag/loader.py` | PyMuPDF + 本地文本读取 | PDF 使用 PyMuPDF，TXT/MD 使用 `read_text` |
 | 文本切分 | `rag/chunker.py` | 固定窗口切分 | 使用 `chunk_size` 和 `chunk_overlap` 控制切分粒度 |
 | Chunk Schema | `schemas/document.py` | Pydantic Schema | 统一 chunk 输出结构，保留 source、file_name、page 等元数据 |
-| Embedding | `rag/retriever.py` | Qwen `text-embedding-v4` | 使用 Qwen embedding 模型对 chunk 和 query 编码 |
-| 检索 | `rag/retriever.py` | Dense Retrieval | 当前使用向量相似度检索，返回 Top-K chunks |
+| Dense Retrieval | `rag/retriever.py` | Qwen `text-embedding-v4` | 使用 Qwen embedding 模型对 chunk 和 query 编码 |
+| BM25 Retrieval | `rag/retriever.py` | `rank-bm25` | 使用轻量 tokenizer + BM25 进行关键词检索 |
+| Hybrid Retrieval | `rag/retriever.py` | Dense + BM25 加权融合 | 对 Dense 与 BM25 分数归一化后加权融合 |
 | 生成 | `rag/generator.py` | Qwen `qwen-plus` | 基于检索上下文生成回答 |
 | 引用构建 | `rag/pipeline.py` | metadata-based citation | 根据检索结果的 source、file_name、page、chunk_id 构建引用 |
 | 拒答机制 | `rag/pipeline.py` + `config/answer.yaml` | score threshold | 当 top score 低于阈值时返回拒答 |
 | 输出结构 | `schemas/common.py` | `RAGResponse` | 返回 answer、citations、grounded |
+| 检索结果结构 | `schemas/retrieval.py` | `RetrievalResult` | 记录 score、source、metadata 与 retrieval_type |
 
 ---
 
@@ -227,7 +268,11 @@ flowchart TD
 - [x] `load -> chunk` 最小 pipeline
 - [x] Qwen Embedding 接入（`text-embedding-v4`）
 - [x] Qwen Generation 接入（`qwen-plus`）
-- [x] 最小 retrieval pipeline
+- [x] Dense Retrieval
+- [x] BM25 Retrieval
+- [x] Hybrid Retrieval
+- [x] `retrieval_mode` 支持 `dense / bm25 / hybrid` 配置切换
+- [x] `RetrievalResult` 增加 `retrieval_type` 字段
 - [x] 回答结构化输出（`RAGResponse` / `Citation`）
 - [x] 基础拒答机制（score threshold）
 - [x] 引用构建逻辑
@@ -252,10 +297,10 @@ flowchart TD
 
 ### 开发中
 
-- [ ] BM25 检索
-- [ ] Hybrid Retrieval
 - [ ] Reranker
 - [ ] Benchmark / Regression Harness
+- [ ] Retrieval Evaluation
+- [ ] Recall@K / MRR 指标
 - [ ] LLM Router Fallback
 - [ ] Qwen-based Tool Generation
 - [ ] 更完整的端到端 Agent Workflow
@@ -273,7 +318,7 @@ offermate-rag/
 ├── rag/                          # RAG 主链路
 │   ├── loader.py                 # 文档加载
 │   ├── chunker.py                # 文本切分
-│   ├── retriever.py              # Qwen embedding 检索
+│   ├── retriever.py              # Dense / BM25 / Hybrid 检索
 │   ├── generator.py              # Qwen generation 回答生成
 │   └── pipeline.py               # retrieval -> answer 主流程
 ├── agent/                        # Agent 路由与流程编排
@@ -341,6 +386,8 @@ offermate-rag/
 - Qwen Embedding: `text-embedding-v4`
 - Qwen Generation: `qwen-plus`
 - Dense Retrieval
+- BM25 Retrieval
+- Hybrid Retrieval
 - Prompt Engineering
 - Citation-Grounded Answering
 
@@ -421,9 +468,51 @@ Linux / Mac：
 export DASHSCOPE_API_KEY="你的APIKey"
 ```
 
+如果只测试 `bm25` 模式，则不需要配置 Qwen API Key。
+
 ---
 
-### 9.4 启动前端
+### 9.4 配置检索模式
+
+在 `config/retrieval.yaml` 中设置：
+
+```yaml
+retrieval_mode: bm25
+```
+
+可选值：
+
+```text
+dense / bm25 / hybrid
+```
+
+完整示例：
+
+```yaml
+chunk_size: 500
+chunk_overlap: 100
+
+# 可选: dense / bm25 / hybrid
+retrieval_mode: bm25
+
+embedding_model: text-embedding-v4
+embedding_dimensions: 1024
+
+top_k: 3
+batch_size: 10
+normalize_embeddings: true
+
+# hybrid retrieval 参数
+hybrid_alpha: 0.6
+bm25_top_k: 10
+dense_top_k: 10
+```
+
+注意：YAML 文件中每一行配置都应使用英文冒号 `:`，注释应以 `#` 开头。
+
+---
+
+### 9.5 启动前端
 
 ```bash
 streamlit run app/main.py
@@ -431,7 +520,7 @@ streamlit run app/main.py
 
 ---
 
-### 9.5 启动后端，可选
+### 9.6 启动后端，可选
 
 ```bash
 uvicorn backend.main:app --reload
@@ -479,12 +568,19 @@ http://127.0.0.1:8000
 这个岗位主要要求哪些技能？
 ```
 
-该模块会调用：
+调用情况取决于 `retrieval_mode`：
 
-- Qwen `text-embedding-v4`
-- Qwen `qwen-plus`
+| retrieval_mode | 调用 Qwen Embedding | 调用 Qwen Generation |
+|---|---|---|
+| `dense` | 是 | 是 |
+| `bm25` | 否 | 是 |
+| `hybrid` | 是 | 是 |
 
-因此会消耗 token。
+说明：
+
+- `bm25` 模式下检索不调用 Qwen Embedding；
+- 只要进入回答生成阶段，就会调用 Qwen `qwen-plus`；
+- 如果触发拒答，则不会调用生成模型。
 
 ---
 
@@ -542,7 +638,55 @@ skill_matcher
 
 ## 12. 示例检查方式
 
-### 12.1 检查完整问答流程
+### 12.1 检查 BM25 Retrieval
+
+先在 `config/retrieval.yaml` 中设置：
+
+```yaml
+retrieval_mode: bm25
+```
+
+然后运行：
+
+```python
+from rag.pipeline import prepare_retriever
+
+retriever = prepare_retriever("data", chunk_size=200, chunk_overlap=50)
+results = retriever.retrieve("这个岗位要求哪些技能", top_k=3)
+
+for r in results:
+    print(r.model_dump())
+```
+
+该流程不调用 Qwen Embedding，不消耗 embedding token。
+
+---
+
+### 12.2 检查 Hybrid Retrieval
+
+先在 `config/retrieval.yaml` 中设置：
+
+```yaml
+retrieval_mode: hybrid
+```
+
+然后运行：
+
+```python
+from rag.pipeline import prepare_retriever
+
+retriever = prepare_retriever("data", chunk_size=200, chunk_overlap=50)
+results = retriever.retrieve("这个岗位要求哪些技能", top_k=3)
+
+for r in results:
+    print(r.model_dump())
+```
+
+该流程会调用 Qwen Embedding，会消耗 token。
+
+---
+
+### 12.3 检查完整问答流程
 
 ```python
 from rag.pipeline import answer_query
@@ -551,11 +695,11 @@ result = answer_query("这个岗位主要要求哪些技能？", "data", top_k=3
 print(result.model_dump())
 ```
 
-注意：该流程会调用 Qwen Embedding 与 Qwen Generation，会消耗 token。
+注意：该流程可能会调用 Qwen Embedding 与 Qwen Generation，是否调用 embedding 取决于 `retrieval_mode`。
 
 ---
 
-### 12.2 检查 Router
+### 12.4 检查 Router
 
 ```python
 from agent.router import route_query
@@ -569,7 +713,7 @@ print(route_query("帮我解析这份简历"))
 
 ---
 
-### 12.3 检查 Skill Matcher
+### 12.5 检查 Skill Matcher
 
 ```python
 from tools.skill_matcher import match_skills
@@ -585,7 +729,7 @@ print(result.model_dump())
 
 ---
 
-### 12.4 检查 Workflow
+### 12.6 检查 Workflow
 
 ```python
 from agent.workflow import run_workflow
@@ -603,13 +747,13 @@ print(result.model_dump())
 
 ---
 
-### 12.5 运行单元测试
+### 12.7 运行单元测试
 
 ```bash
 pytest tests/unit -v
 ```
 
-单元测试主要验证 schema、loader、chunker、router、tools、workflow、answer logic 等本地逻辑，默认不调用 Qwen，不消耗 token。
+单元测试主要验证 schema、loader、chunker、router、tools、workflow、BM25、answer logic 等本地逻辑，默认不调用 Qwen，不消耗 token。
 
 ---
 
@@ -637,6 +781,7 @@ pytest tests/unit -v
 - Pydantic Schema 约束结构化输出
 - Prompt 模板外置，避免散落在代码中
 - Router 规则配置化，避免硬编码
+- Retrieval mode 配置化，避免检索策略写死
 - Tool Contract 声明工具输入和输出结构
 - WorkflowResult 统一 Agent Workflow 输出
 - 单元测试覆盖核心本地逻辑
@@ -650,6 +795,7 @@ pytest tests/unit -v
 
 - 使用 `config/*.yaml` 管理参数
 - 使用 `config/tool.yaml` 管理工具契约
+- 使用 `config/retrieval.yaml` 管理检索策略
 - 使用 Git 记录开发过程
 - 使用 GitHub Actions 执行基础 CI
 - 后续计划引入更完整的 checks 与 regression tests
@@ -697,17 +843,24 @@ pytest tests/unit -v
 
 ---
 
-### 14.3 检索模块仍是 Dense Retrieval
+### 14.3 Hybrid Retrieval 仍是基础版
 
-当前检索模块仅支持 Qwen Embedding + Dense Retrieval。
+当前 Hybrid Retrieval 已完成基础框架，但仍属于早期版本。
+
+当前特点：
+
+- Dense 与 BM25 分数使用 min-max normalization
+- 使用 `hybrid_alpha` 加权融合
+- 暂未接入 reranker
+- 暂未完成 Recall@K / MRR 评测
 
 后续计划：
 
-- 接入 BM25
-- 接入 Hybrid Retrieval
-- 接入 Reranker
 - 构建 retrieval benchmark
-- 输出 Recall@K / MRR 等指标
+- 对 dense / BM25 / hybrid 进行 Recall@K 与 MRR 对比
+- 接入 Reranker
+- 优化中英文混合 tokenizer
+- 优化 hybrid score calibration
 
 ---
 
@@ -729,17 +882,17 @@ pytest tests/unit -v
 
 ### 阶段三：增强 RAG 检索质量
 
-- BM25
-- Hybrid Retrieval
+- Retrieval Benchmark
+- Recall@K / MRR
 - Reranker
-- Retrieval Evaluation
+- Hybrid score calibration
 
 ### 阶段四：补强 Harness Engineering
 
 - Schema checks
 - Prompt checks
 - Tool contract checks
-- Regression benchmark
+- Retrieval regression benchmark
 - CI quality gate
 
 ### 阶段五：增强展示能力
@@ -758,7 +911,7 @@ pytest tests/unit -v
 - 场景化：围绕岗位 JD、简历与技术文档的真实求职场景设计
 - 工程化：通过模块划分、Schema、配置、测试与 CI 提高可维护性
 - 可控性：通过 Harness Engineering 思路约束 AI 输出行为
-- 可扩展性：通过 Agent Router、Tool Contract 与 WorkflowResult 支持后续多任务扩展
+- 可扩展性：通过 Retrieval Mode、Agent Router、Tool Contract 与 WorkflowResult 支持后续多任务扩展
 - 可展示性：兼具 GitHub 项目展示、简历项目描述与面试讲解价值
 
 ---
